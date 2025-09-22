@@ -10,7 +10,7 @@ type File struct {
 	SizeInBytes  int64     `db:"size_in_bytes"`
 	S3Bucket     string    `db:"s3_bucket"`
 	S3Key        string    `db:"s3_key"`
-	Status       string    `db:"status"`
+	Status       int       `db:"status"`
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 	IsPublic     bool      `db:"is_public"`
