@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 	"meemo/internal/domain/model"
 	"strconv"
 )
 
 const secret = "your-256-bit-secret"
+const salt = "salt"
 
 type UserService interface {
 	CreateToken(ctx context.Context, user *model.User) (string, error)
 	ParseToken(ctx context.Context, token string) (*model.User, error)
+	HashPassword(user *model.User, password string) error
 }
 
 type userService struct {
@@ -72,4 +75,13 @@ func (us *userService) ParseToken(ctx context.Context, tokenString string) (*mod
 	}
 
 	return nil, fmt.Errorf("claim parsing id failed")
+}
+
+func (us *userService) HashPassword(user *model.User, password string) error {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	user.PasswordSalt = string(bytes)
+	return nil
 }

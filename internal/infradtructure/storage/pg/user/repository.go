@@ -16,7 +16,7 @@ func NewUserRepository(conn *sqlx.DB) repository.UserRepository {
 }
 
 func (ur *userRepository) CreateUser(ctx context.Context, user *model.User) (*model.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, CreateUserTemplate, user).Scan(&user.ID)
+	err := ur.conn.QueryRowxContext(ctx, CreateUserTemplate, user.ID, user.FirstName, user.LastName, user.Email, user.PasswordSalt).Scan(&user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func (ur *userRepository) CreateUser(ctx context.Context, user *model.User) (*mo
 
 func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
 	user := &model.User{}
-	err := ur.conn.QueryRowxContext(ctx, GetUserByEmailTemplate, email).Scan(&user)
+	err := ur.conn.QueryRowxContext(ctx, GetUserByEmailTemplate, email).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.PasswordSalt)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*mo
 }
 
 func (ur *userRepository) UpdateUser(ctx context.Context, user *model.User) (*model.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, UpdateUserTemplate, user).Scan(&user.ID)
+	err := ur.conn.QueryRowxContext(ctx, UpdateUserTemplate, user.Email, user.FirstName, user.LastName, user.PasswordSalt).Scan(&user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (ur *userRepository) UpdateUser(ctx context.Context, user *model.User) (*mo
 }
 
 func (ur *userRepository) DeleteUser(ctx context.Context, user *model.User) (*model.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, DeleteUserTemplate, user).Scan(&user.ID)
+	err := ur.conn.QueryRowxContext(ctx, DeleteUserTemplate, user.Email).Scan(&user.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -8,4 +8,5 @@ type PGConfig struct {
 	Port     string `config:"POSTGRES_PORT" yaml:"port"`
 	Retries  int    `config:"DB_CONNECT_RETRY" yaml:"retries"`
 	PoolSize int    `config:"DB_POOL_SIZE" yaml:"pool_size"`
+	SSLMode  string `config:"SSL_MODE" yaml:"ssl_mode"`
 }
