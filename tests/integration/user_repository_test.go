@@ -5,17 +5,17 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
 	"log"
 	"meemo/internal/domain/model"
 	"meemo/internal/domain/user/service"
 	storage "meemo/internal/infradtructure/storage/pg"
 	"meemo/internal/infradtructure/storage/pg/user"
+	"os"
 	"testing"
 )
 
 func initDB(t *testing.T) (*sqlx.DB, func()) {
-	configFile, err := ioutil.ReadFile("db_config.yaml")
+	configFile, err := os.ReadFile("db_config.yaml")
 	if err != nil {
 		log.Fatalf("Error reading config file: %v", err)
 	}
@@ -28,25 +28,6 @@ func initDB(t *testing.T) (*sqlx.DB, func()) {
 
 	return SetupTestDB(t, cfg)
 }
-
-// Базовый случай создания нового пользователя
-//func TestCreateUser(t *testing.T) {
-//	db, teardown := initDB(t)
-//	defer teardown()
-//
-//	newUser := &model.User{
-//		FirstName: "Тест",
-//		LastName:  "Тестов",
-//		Email:     "test@test.com",
-//	}
-//
-//	us := service.NewUserService()
-//	us.HashPassword(newUser, "test")
-//
-//	ur := user.NewUserRepository(db)
-//
-//	ur.CreateUser(context.Background(), &model.User{})
-//}
 
 func TestCreateUser(t *testing.T) {
 	db, teardown := initDB(t)
@@ -83,7 +64,6 @@ func TestGetUserByEmail(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	// Сначала создаем пользователя
 	newUser := &model.User{
 		FirstName: "Иван",
 		LastName:  "Иванов",
@@ -99,7 +79,6 @@ func TestGetUserByEmail(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Теперь получаем его по email
 	foundUser, err := ur.GetUserByEmail(context.Background(), "ivan@test.com")
 	if err != nil {
 		t.Fatalf("Failed to get user by email: %v", err)
@@ -119,19 +98,16 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 
 	ur := user.NewUserRepository(db)
 
-	// Пытаемся найти несуществующего пользователя
 	_, err := ur.GetUserByEmail(context.Background(), "nonexistent@test.com")
 	if err == nil {
 		t.Error("Expected error for non-existent user, got nil")
 	}
-	// Можно проверить конкретную ошибку, например sql.ErrNoRows
 }
 
 func TestUpdateUser(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	// Создаем пользователя
 	newUser := &model.User{
 		FirstName: "Петр",
 		LastName:  "Петров",
@@ -147,7 +123,6 @@ func TestUpdateUser(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Обновляем данные
 	createdUser.FirstName = "Петр Updated"
 	createdUser.LastName = "Петров Updated"
 	us.HashPassword(createdUser, "newpassword")
@@ -166,7 +141,6 @@ func TestDeleteUser(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	// Создаем пользователя
 	newUser := &model.User{
 		FirstName: "Удаляемый",
 		LastName:  "Пользователь",
@@ -182,7 +156,6 @@ func TestDeleteUser(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Удаляем пользователя
 	deletedUser, err := ur.DeleteUser(context.Background(), createdUser)
 	if err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
@@ -192,7 +165,6 @@ func TestDeleteUser(t *testing.T) {
 		t.Errorf("Expected deleted user ID %d, got %d", createdUser.ID, deletedUser.ID)
 	}
 
-	// Проверяем, что пользователь действительно удален
 	_, err = ur.GetUserByEmail(context.Background(), "delete@test.com")
 	if err == nil {
 		t.Error("Expected error when getting deleted user, got nil")
@@ -220,7 +192,6 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
-	// Пытаемся создать второго с тем же email
 	duplicateUser := &model.User{
 		FirstName: "Другой",
 		LastName:  "Пользователь",
@@ -232,5 +203,4 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error for duplicate email, got nil")
 	}
-	// Можно проверить, что это ошибка нарушения unique constraint
 }
