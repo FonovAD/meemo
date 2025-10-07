@@ -16,7 +16,7 @@ func NewUserRepository(conn *sqlx.DB) repository.UserRepository {
 }
 
 func (ur *userRepository) CreateUser(ctx context.Context, user *model.User) (*model.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, CreateUserTemplate, user.ID, user.FirstName, user.LastName, user.Email, user.PasswordSalt).Scan(&user.ID)
+	err := ur.conn.QueryRowxContext(ctx, CreateUserTemplate, user.FirstName, user.LastName, user.Email, user.PasswordSalt).Scan(&user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -34,6 +34,14 @@ func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*mo
 
 func (ur *userRepository) UpdateUser(ctx context.Context, user *model.User) (*model.User, error) {
 	err := ur.conn.QueryRowxContext(ctx, UpdateUserTemplate, user.Email, user.FirstName, user.LastName, user.PasswordSalt).Scan(&user.ID)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (ur *userRepository) UpdateUserEmail(ctx context.Context, user *model.User, email string) (*model.User, error) {
+	err := ur.conn.QueryRowxContext(ctx, UpdateUserEmailTemplate, user.Email, email).Scan(&user.ID)
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS users
     password_salt VARCHAR(255)        NOT NULL,
     created_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+
+    CONSTRAINT chk_email_not_empty CHECK (email <> '' AND email IS NOT NULL),
+    CONSTRAINT chk_email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
 CREATE TABLE IF NOT EXISTS files

@@ -2,8 +2,8 @@ package user
 
 const (
 	CreateUserTemplate = `
-	INSERT INTO users 
-	VALUES ($1, $2, $3, $4, $5)
+	INSERT INTO users (first_name, last_name, email, password_salt) 
+	VALUES ($1, $2, $3, $4)
 	RETURNING id;`
 
 	GetUserByEmailTemplate = `
@@ -18,6 +18,12 @@ const (
 
 	DeleteUserTemplate = `
 	DELETE FROM users
+	WHERE email = $1
+	RETURNING id;`
+
+	UpdateUserEmailTemplate = `
+	UPDATE users
+	SET email = $2
 	WHERE email = $1
 	RETURNING id;`
 )
