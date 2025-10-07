@@ -29,8 +29,10 @@ CREATE TABLE IF NOT EXISTS files
     CONSTRAINT fk_files_user
         FOREIGN KEY (user_id)
             REFERENCES users (id)
-            ON DELETE CASCADE
-);
+            ON DELETE CASCADE,
+
+    CONSTRAINT unique_user_filename UNIQUE (user_id, original_name)
+    );
 
 CREATE INDEX idx_files_user_id ON files (user_id);
 CREATE INDEX idx_files_status ON files (status);

@@ -2,38 +2,42 @@ package file
 
 const (
 	SaveFileTemplate = `
-INSERT INTO file
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+INSERT INTO files (user_id, original_name, mime_type, size_in_bytes, s3_bucket, s3_key, status, created_at, updated_at, is_public)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
 RETURNING id;`
 
 	DeleteFileTemplate = `
-DELETE FROM file f
+DELETE FROM files f
 USING users u
 WHERE f.user_id = u.id 
   AND u.email = $1 
-  AND f.original_name = $2;`
+  AND f.original_name = $2
+RETURNING f.id;`
+
+	// TODO: убрать *
 
 	GetFileTemplate = `
-SELECT f.*, u.* 
-FROM file f
+SELECT f.*
+FROM files f
 INNER JOIN users u ON f.user_id = u.id
 WHERE u.email = $1 
   AND f.original_name = $2;`
 
 	ChangeVisibilityTemplate = `
-UPDATE file f
+UPDATE files f
 SET is_public = $1
 FROM users u
 WHERE f.user_id = u.id 
   AND u.email = $2 
-  AND f.original_name = $3;`
+  AND f.original_name = $3
+RETURNING f.id, f.is_public;`
 
 	SetStatusTemplate = `
-UPDATE file f
+UPDATE files f
 SET status = $1
 FROM users u
 WHERE f.user_id = u.id 
   AND u.email = $2 
   AND f.original_name = $3
-RETURNING f.id;`
+RETURNING f.id, f.status;`
 )
