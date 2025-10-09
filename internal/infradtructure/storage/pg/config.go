@@ -1,4 +1,4 @@
-package storage
+package pg
 
 type PGConfig struct {
 	Database string `config:"POSTGRES_DB" yaml:"database"`

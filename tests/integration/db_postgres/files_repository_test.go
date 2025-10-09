@@ -1,4 +1,4 @@
-package integration
+package db_postgres
 
 import (
 	"context"
@@ -15,7 +15,6 @@ func TestSaveFile_Success(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	// Создаем пользователя
 	test_user := createTestUser(t, db, "fileuser@test.com")
 
 	fr := file.NewFileRepository(db)
@@ -65,13 +64,11 @@ func TestSaveFile_DuplicateName(t *testing.T) {
 		IsPublic:     false,
 	}
 
-	// Первое сохранение
 	_, err := fr.SaveFile(context.Background(), user, testFile)
 	if err != nil {
 		t.Fatalf("Failed to save first file: %v", err)
 	}
 
-	// Второе сохранение с тем же именем для того же пользователя
 	duplicateFile := &model.File{
 		OriginalName: "duplicate.txt", // То же имя
 		MimeType:     "text/plain",
@@ -95,7 +92,6 @@ func TestGetFile_Success(t *testing.T) {
 	user := createTestUser(t, db, "getfile@test.com")
 	fr := file.NewFileRepository(db)
 
-	// Сначала сохраняем файл
 	testFile := &model.File{
 		OriginalName: "get_test.jpg",
 		MimeType:     "image/jpeg",
@@ -111,7 +107,6 @@ func TestGetFile_Success(t *testing.T) {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	// Теперь получаем его
 	searchFile := &model.File{OriginalName: "get_test.jpg"}
 	foundFile, err := fr.GetFile(context.Background(), user, searchFile)
 	if err != nil {
@@ -147,12 +142,10 @@ func TestGetFile_WrongUser(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	// Создаем двух пользователей
 	user1 := createTestUser(t, db, "user1@test.com")
 	user2 := createTestUser(t, db, "user2@test.com")
 	fr := file.NewFileRepository(db)
 
-	// Сохраняем файл для первого пользователя
 	testFile := &model.File{
 		OriginalName: "private.txt",
 		MimeType:     "text/plain",
@@ -168,7 +161,6 @@ func TestGetFile_WrongUser(t *testing.T) {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	// Пытаемся получить файл второго пользователем
 	searchFile := &model.File{OriginalName: "private.txt"}
 	_, err = fr.GetFile(context.Background(), user2, searchFile)
 	if err == nil {
@@ -183,7 +175,6 @@ func TestDeleteFile_Success(t *testing.T) {
 	user := createTestUser(t, db, "delete@test.com")
 	fr := file.NewFileRepository(db)
 
-	// Сначала сохраняем файл
 	testFile := &model.File{
 		OriginalName: "to_delete.pdf",
 		MimeType:     "application/pdf",
@@ -199,7 +190,6 @@ func TestDeleteFile_Success(t *testing.T) {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	// Удаляем файл
 	deletedFile, err := fr.DeleteFile(context.Background(), user, savedFile)
 	if err != nil {
 		t.Fatalf("Failed to delete file: %v", err)
@@ -209,7 +199,6 @@ func TestDeleteFile_Success(t *testing.T) {
 		t.Errorf("Expected deleted file ID %d, got %d", savedFile.ID, deletedFile.ID)
 	}
 
-	// Проверяем, что файл действительно удален
 	searchFile := &model.File{OriginalName: "to_delete.pdf"}
 	_, err = fr.GetFile(context.Background(), user, searchFile)
 	if err == nil {
@@ -238,7 +227,6 @@ func TestChangeVisibility_Success(t *testing.T) {
 	user := createTestUser(t, db, "visibility@test.com")
 	fr := file.NewFileRepository(db)
 
-	// Сохраняем файл с isPublic = false
 	testFile := &model.File{
 		OriginalName: "visibility_test.txt",
 		MimeType:     "text/plain",
@@ -254,7 +242,6 @@ func TestChangeVisibility_Success(t *testing.T) {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	// Меняем видимость на true
 	updatedFile, err := fr.ChangeVisibility(context.Background(), user, savedFile, true)
 	if err != nil {
 		t.Fatalf("Failed to change visibility: %v", err)
@@ -264,7 +251,6 @@ func TestChangeVisibility_Success(t *testing.T) {
 		t.Error("Expected file to be public after visibility change")
 	}
 
-	// Проверяем, что изменение сохранилось в БД
 	searchFile := &model.File{OriginalName: "visibility_test.txt"}
 	foundFile, err := fr.GetFile(context.Background(), user, searchFile)
 	if err != nil {
@@ -289,7 +275,7 @@ func TestSetStatus_Success(t *testing.T) {
 		SizeInBytes:  100,
 		S3Bucket:     "test-bucket",
 		S3Key:        "files/status.txt",
-		Status:       0, // начальный статус
+		Status:       0,
 		IsPublic:     false,
 	}
 
@@ -298,7 +284,6 @@ func TestSetStatus_Success(t *testing.T) {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	// Меняем статус на 1
 	newStatus := 1
 	updatedFile, err := fr.SetStatus(context.Background(), user, savedFile, newStatus)
 	if err != nil {
@@ -309,7 +294,6 @@ func TestSetStatus_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", newStatus, updatedFile.Status)
 	}
 
-	// Проверяем в БД
 	searchFile := &model.File{OriginalName: "status_test.txt"}
 	foundFile, err := fr.GetFile(context.Background(), user, searchFile)
 	if err != nil {
@@ -325,12 +309,10 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	// Создаем двух пользователей
 	user1 := createTestUser(t, db, "multi1@test.com")
 	user2 := createTestUser(t, db, "multi2@test.com")
 	fr := file.NewFileRepository(db)
 
-	// Оба пользователя сохраняют файл с одинаковым именем
 	file1 := &model.File{
 		OriginalName: "same_name.txt",
 		MimeType:     "text/plain",
@@ -342,7 +324,7 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 	}
 
 	file2 := &model.File{
-		OriginalName: "same_name.txt", // То же имя файла
+		OriginalName: "same_name.txt",
 		MimeType:     "text/plain",
 		SizeInBytes:  200,
 		S3Bucket:     "test-bucket",
@@ -351,24 +333,20 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 		IsPublic:     true,
 	}
 
-	// Сохраняем для первого пользователя
 	saved1, err := fr.SaveFile(context.Background(), user1, file1)
 	if err != nil {
 		t.Fatalf("Failed to save file for user1: %v", err)
 	}
 
-	// Сохраняем для второго пользователя
 	saved2, err := fr.SaveFile(context.Background(), user2, file2)
 	if err != nil {
 		t.Fatalf("Failed to save file for user2: %v", err)
 	}
 
-	// Проверяем, что это разные файлы
 	if saved1.ID == saved2.ID {
 		t.Error("Expected different file IDs for different users")
 	}
 
-	// Каждый пользователь может получить свой файл
 	searchFile1 := &model.File{OriginalName: "same_name.txt"}
 	found1, err := fr.GetFile(context.Background(), user1, searchFile1)
 	if err != nil {

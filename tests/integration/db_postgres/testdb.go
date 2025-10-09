@@ -1,4 +1,4 @@
-package integration
+package db_postgres
 
 import (
 	"errors"
@@ -7,13 +7,13 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jmoiron/sqlx"
 	"log"
-	storage "meemo/internal/infradtructure/storage/pg"
+	pg "meemo/internal/infradtructure/storage/pg"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
-func SetupTestDB(t *testing.T, config storage.PGConfig) (*sqlx.DB, func()) {
+func SetupTestDB(t *testing.T, config pg.PGConfig) (*sqlx.DB, func()) {
 	db, err := sqlx.Open("postgres",
 		fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
 			config.Host, config.Port, config.User, config.Password, config.Database, config.SSLMode))
@@ -44,7 +44,7 @@ func runMigration(db *sqlx.DB) error {
 
 	migrationsPath := os.Getenv("MIGRATIONS_PATH")
 	if migrationsPath == "" {
-		migrationsPath = "../../migrations"
+		migrationsPath = "../../../migrations"
 	}
 
 	absPath, err := filepath.Abs(migrationsPath)

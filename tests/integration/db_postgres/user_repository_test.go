@@ -1,4 +1,4 @@
-package integration
+package db_postgres
 
 import (
 	"context"
@@ -138,12 +138,11 @@ func TestUpdateUser(t *testing.T) {
 }
 
 func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
-	db, _ := initDB(t)
-	//defer teardown()
+	db, teardown := initDB(t)
+	defer teardown()
 
 	ur := user.NewUserRepository(db)
 
-	// Создаем первого пользователя
 	user1 := &model.User{
 		FirstName: "Первый",
 		LastName:  "Пользователь",
@@ -156,7 +155,6 @@ func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
-	// Создаем второго пользователя
 	user2 := &model.User{
 		FirstName: "Второй",
 		LastName:  "Пользователь",
@@ -168,19 +166,16 @@ func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
 		t.Fatalf("Failed to create second user: %v", err)
 	}
 
-	// Пытаемся обновить email второго пользователя на email первого
 	_, err = ur.UpdateUserEmail(context.Background(), createdUser2, "user1@test.com")
 	if err == nil {
 		t.Error("Expected error for duplicate email, got nil")
 	}
-	// Можно проверить, что это ошибка нарушения unique constraint
 }
 
 func TestUpdateUserEmail_SameEmail(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	// Создаем пользователя
 	newUser := &model.User{
 		FirstName: "Мария",
 		LastName:  "Иванова",
@@ -196,18 +191,15 @@ func TestUpdateUserEmail_SameEmail(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Пытаемся обновить на тот же email
 	updatedUser, err := ur.UpdateUserEmail(context.Background(), createdUser, "maria@test.com")
 	if err != nil {
 		t.Fatalf("Unexpected error when updating to same email: %v", err)
 	}
 
-	// Проверяем, что данные не изменились
 	if updatedUser.Email != "maria@test.com" {
 		t.Errorf("Expected email %s, got %s", "maria@test.com", updatedUser.Email)
 	}
 
-	// Проверяем, что пользователь все еще доступен
 	foundUser, err := ur.GetUserByEmail(context.Background(), "maria@test.com")
 	if err != nil {
 		t.Fatalf("Failed to get user after same email update: %v", err)
@@ -218,10 +210,9 @@ func TestUpdateUserEmail_SameEmail(t *testing.T) {
 }
 
 func TestUpdateUserEmail_EmptyEmail(t *testing.T) {
-	db, _ := initDB(t)
-	//defer teardown()
+	db, teardown := initDB(t)
+	defer teardown()
 
-	// Создаем пользователя
 	newUser := &model.User{
 		FirstName: "Дмитрий",
 		LastName:  "Сидоров",
@@ -237,7 +228,6 @@ func TestUpdateUserEmail_EmptyEmail(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Пытаемся обновить на пустой email
 	_, err = ur.UpdateUserEmail(context.Background(), createdUser, "")
 	if err == nil {
 		t.Error("Expected error for empty email, got nil")
@@ -293,7 +283,6 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 
 	ur := user.NewUserRepository(db)
 
-	// Создаем первого пользователя
 	_, err := ur.CreateUser(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
