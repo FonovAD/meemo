@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"database/sql"
 	"github.com/jmoiron/sqlx"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/user/repository"
@@ -16,16 +17,22 @@ func NewUserRepository(conn *sqlx.DB) repository.UserRepository {
 }
 
 func (ur *userRepository) CreateUser(ctx context.Context, user *entity.User) (*entity.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, CreateUserTemplate, user.FirstName, user.LastName, user.Email, user.PasswordSalt).Scan(&user.ID)
+	rows, err := ur.conn.NamedQueryContext(ctx, CreateUserTemplate, &user)
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	for rows.Next() {
+		if err := rows.Scan(&user.ID); err != nil {
+			return nil, err
+		}
+		return user, nil
+	}
+	return nil, sql.ErrNoRows
 }
 
 func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
 	user := &entity.User{}
-	err := ur.conn.QueryRowxContext(ctx, GetUserByEmailTemplate, email).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.PasswordSalt)
+	err := ur.conn.QueryRowxContext(ctx, GetUserByEmailTemplate, email).StructScan(user)
 	if err != nil {
 		return nil, err
 	}
@@ -33,11 +40,17 @@ func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*en
 }
 
 func (ur *userRepository) UpdateUser(ctx context.Context, user *entity.User) (*entity.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, UpdateUserTemplate, user.Email, user.FirstName, user.LastName, user.PasswordSalt).Scan(&user.ID)
+	rows, err := ur.conn.NamedQueryContext(ctx, UpdateUserTemplate, &user)
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	for rows.Next() {
+		if err := rows.Scan(&user.ID); err != nil {
+			return nil, err
+		}
+		return user, nil
+	}
+	return nil, sql.ErrNoRows
 }
 
 func (ur *userRepository) UpdateUserEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error) {

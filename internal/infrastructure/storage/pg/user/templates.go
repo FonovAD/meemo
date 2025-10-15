@@ -3,7 +3,7 @@ package user
 const (
 	CreateUserTemplate = `
 	INSERT INTO users (first_name, last_name, email, password_salt) 
-	VALUES ($1, $2, $3, $4)
+	VALUES (:first_name, :last_name, :email, :password_salt)
 	RETURNING id;`
 
 	GetUserByEmailTemplate = `
@@ -12,8 +12,8 @@ const (
 
 	UpdateUserTemplate = `
 	UPDATE users
-	SET first_name = $2, last_name = $3, password_salt = $4
-	WHERE email = $1
+	SET first_name = :first_name, last_name = :last_name, password_salt = :password_salt
+	WHERE email = :email
 	RETURNING id;`
 
 	DeleteUserTemplate = `
