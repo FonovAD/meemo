@@ -6,6 +6,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/user/repository"
+	"meemo/internal/infrastructure/storage/model"
 )
 
 type userRepository struct {
@@ -17,54 +18,75 @@ func NewUserRepository(conn *sqlx.DB) repository.UserRepository {
 }
 
 func (ur *userRepository) CreateUser(ctx context.Context, user *entity.User) (*entity.User, error) {
-	rows, err := ur.conn.NamedQueryContext(ctx, CreateUserTemplate, &user)
+	userModel := &model.User{}
+	if err := userModel.EntityToModel(user); err != nil {
+		return nil, err
+	}
+
+	rows, err := ur.conn.NamedQueryContext(ctx, CreateUserTemplate, &userModel)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		if err := rows.Scan(&user.ID); err != nil {
+		if err := rows.Scan(&userModel.ID); err != nil {
 			return nil, err
 		}
-		return user, nil
+		return userModel.ModelToEntity(), nil
 	}
 	return nil, sql.ErrNoRows
 }
 
 func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
-	user := &entity.User{}
-	err := ur.conn.QueryRowxContext(ctx, GetUserByEmailTemplate, email).StructScan(user)
+	userModel := &model.User{}
+
+	err := ur.conn.QueryRowxContext(ctx, GetUserByEmailTemplate, email).StructScan(userModel)
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	return userModel.ModelToEntity(), nil
 }
 
 func (ur *userRepository) UpdateUser(ctx context.Context, user *entity.User) (*entity.User, error) {
-	rows, err := ur.conn.NamedQueryContext(ctx, UpdateUserTemplate, &user)
+	userModel := &model.User{}
+	if err := userModel.EntityToModel(user); err != nil {
+		return nil, err
+	}
+
+	rows, err := ur.conn.NamedQueryContext(ctx, UpdateUserTemplate, &userModel)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		if err := rows.Scan(&user.ID); err != nil {
+		if err := rows.Scan(&userModel.ID); err != nil {
 			return nil, err
 		}
-		return user, nil
+		return userModel.ModelToEntity(), nil
 	}
 	return nil, sql.ErrNoRows
 }
 
 func (ur *userRepository) UpdateUserEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, UpdateUserEmailTemplate, user.Email, email).Scan(&user.ID)
+	userModel := &model.User{}
+	if err := userModel.EntityToModel(user); err != nil {
+		return nil, err
+	}
+
+	err := ur.conn.QueryRowxContext(ctx, UpdateUserEmailTemplate, userModel.Email, email).Scan(&userModel.ID)
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	return userModel.ModelToEntity(), nil
 }
 
 func (ur *userRepository) DeleteUser(ctx context.Context, user *entity.User) (*entity.User, error) {
-	err := ur.conn.QueryRowxContext(ctx, DeleteUserTemplate, user.Email).Scan(&user.ID)
+	userModel := &model.User{}
+	if err := userModel.EntityToModel(user); err != nil {
+		return nil, err
+	}
+
+	err := ur.conn.QueryRowxContext(ctx, DeleteUserTemplate, userModel.Email).Scan(&userModel.ID)
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+	return userModel.ModelToEntity(), nil
 }

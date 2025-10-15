@@ -3,7 +3,6 @@ package db_postgres
 import (
 	"context"
 	"github.com/jmoiron/sqlx"
-	"log"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/user/service"
 	"meemo/internal/infrastructure/storage/pg/file"
@@ -15,11 +14,9 @@ func TestSaveFile_Success(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	test_user := createTestUser(t, db, "fileuser@test.com")
+	testUser := createTestUser(t, db, "fileuser@test.com")
 
 	fr := file.NewFileRepository(db)
-
-	log.Print("1")
 
 	testFile := &entity.File{
 		OriginalName: "test_document.pdf",
@@ -31,7 +28,7 @@ func TestSaveFile_Success(t *testing.T) {
 		IsPublic:     false,
 	}
 
-	savedFile, err := fr.SaveFile(t.Context(), test_user, testFile)
+	savedFile, err := fr.SaveFile(t.Context(), testUser, testFile)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
@@ -42,8 +39,8 @@ func TestSaveFile_Success(t *testing.T) {
 	if savedFile.OriginalName != testFile.OriginalName {
 		t.Errorf("Expected original name %s, got %s", testFile.OriginalName, savedFile.OriginalName)
 	}
-	if savedFile.UserID != test_user.ID {
-		t.Errorf("Expected user ID %d, got %d", test_user.ID, savedFile.UserID)
+	if savedFile.UserID != testUser.ID {
+		t.Errorf("Expected user ID %d, got %d", testUser.ID, savedFile.UserID)
 	}
 }
 

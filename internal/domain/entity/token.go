@@ -3,15 +3,15 @@ package entity
 import "time"
 
 type RefreshToken struct {
-	ID        string    `db:"id"`
-	UserID    int       `db:"user_id"`
-	ExpiresAt time.Time `db:"expires_at"`
-	CreatedAt time.Time `db:"created_at"`
-	Revoked   bool      `db:"revoked"`
+	ID        string    `json:"id"`
+	UserID    int       `json:"user_id"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+	Revoked   bool      `json:"revoked"`
 }
 
 type TokenPair struct {
-	AccessToken  string    `db:"access_token"`
-	RefreshToken string    `db:"refresh_token"`
-	ExpiresAt    time.Time `db:"expires_at"`
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
