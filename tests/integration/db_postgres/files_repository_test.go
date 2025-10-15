@@ -4,10 +4,10 @@ import (
 	"context"
 	"github.com/jmoiron/sqlx"
 	"log"
-	"meemo/internal/domain/model"
+	"meemo/internal/domain/entity"
 	"meemo/internal/domain/user/service"
-	"meemo/internal/infradtructure/storage/pg/file"
-	"meemo/internal/infradtructure/storage/pg/user"
+	"meemo/internal/infrastructure/storage/pg/file"
+	"meemo/internal/infrastructure/storage/pg/user"
 	"testing"
 )
 
@@ -21,7 +21,7 @@ func TestSaveFile_Success(t *testing.T) {
 
 	log.Print("1")
 
-	testFile := &model.File{
+	testFile := &entity.File{
 		OriginalName: "test_document.pdf",
 		MimeType:     "application/pdf",
 		SizeInBytes:  1024,
@@ -54,7 +54,7 @@ func TestSaveFile_DuplicateName(t *testing.T) {
 	user := createTestUser(t, db, "duplicate@test.com")
 	fr := file.NewFileRepository(db)
 
-	testFile := &model.File{
+	testFile := &entity.File{
 		OriginalName: "duplicate.txt",
 		MimeType:     "text/plain",
 		SizeInBytes:  100,
@@ -69,7 +69,7 @@ func TestSaveFile_DuplicateName(t *testing.T) {
 		t.Fatalf("Failed to save first file: %v", err)
 	}
 
-	duplicateFile := &model.File{
+	duplicateFile := &entity.File{
 		OriginalName: "duplicate.txt", // То же имя
 		MimeType:     "text/plain",
 		SizeInBytes:  200,
@@ -92,7 +92,7 @@ func TestGetFile_Success(t *testing.T) {
 	user := createTestUser(t, db, "getfile@test.com")
 	fr := file.NewFileRepository(db)
 
-	testFile := &model.File{
+	testFile := &entity.File{
 		OriginalName: "get_test.jpg",
 		MimeType:     "image/jpeg",
 		SizeInBytes:  2048,
@@ -107,7 +107,7 @@ func TestGetFile_Success(t *testing.T) {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	searchFile := &model.File{OriginalName: "get_test.jpg"}
+	searchFile := &entity.File{OriginalName: "get_test.jpg"}
 	foundFile, err := fr.GetFile(context.Background(), user, searchFile)
 	if err != nil {
 		t.Fatalf("Failed to get file: %v", err)
@@ -131,7 +131,7 @@ func TestGetFile_NotFound(t *testing.T) {
 	user := createTestUser(t, db, "notfound@test.com")
 	fr := file.NewFileRepository(db)
 
-	searchFile := &model.File{OriginalName: "nonexistent.txt"}
+	searchFile := &entity.File{OriginalName: "nonexistent.txt"}
 	_, err := fr.GetFile(context.Background(), user, searchFile)
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
@@ -146,7 +146,7 @@ func TestGetFile_WrongUser(t *testing.T) {
 	user2 := createTestUser(t, db, "user2@test.com")
 	fr := file.NewFileRepository(db)
 
-	testFile := &model.File{
+	testFile := &entity.File{
 		OriginalName: "private.txt",
 		MimeType:     "text/plain",
 		SizeInBytes:  100,
@@ -161,7 +161,7 @@ func TestGetFile_WrongUser(t *testing.T) {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	searchFile := &model.File{OriginalName: "private.txt"}
+	searchFile := &entity.File{OriginalName: "private.txt"}
 	_, err = fr.GetFile(context.Background(), user2, searchFile)
 	if err == nil {
 		t.Error("Expected error when accessing other user's file, got nil")
@@ -175,7 +175,7 @@ func TestDeleteFile_Success(t *testing.T) {
 	user := createTestUser(t, db, "delete@test.com")
 	fr := file.NewFileRepository(db)
 
-	testFile := &model.File{
+	testFile := &entity.File{
 		OriginalName: "to_delete.pdf",
 		MimeType:     "application/pdf",
 		SizeInBytes:  512,
@@ -199,7 +199,7 @@ func TestDeleteFile_Success(t *testing.T) {
 		t.Errorf("Expected deleted file ID %d, got %d", savedFile.ID, deletedFile.ID)
 	}
 
-	searchFile := &model.File{OriginalName: "to_delete.pdf"}
+	searchFile := &entity.File{OriginalName: "to_delete.pdf"}
 	_, err = fr.GetFile(context.Background(), user, searchFile)
 	if err == nil {
 		t.Error("Expected error when getting deleted file, got nil")
@@ -213,7 +213,7 @@ func TestDeleteFile_NotFound(t *testing.T) {
 	user := createTestUser(t, db, "deletenotfound@test.com")
 	fr := file.NewFileRepository(db)
 
-	nonExistentFile := &model.File{OriginalName: "nonexistent.txt"}
+	nonExistentFile := &entity.File{OriginalName: "nonexistent.txt"}
 	_, err := fr.DeleteFile(context.Background(), user, nonExistentFile)
 	if err == nil {
 		t.Error("Expected error when deleting non-existent file, got nil")
@@ -227,7 +227,7 @@ func TestChangeVisibility_Success(t *testing.T) {
 	user := createTestUser(t, db, "visibility@test.com")
 	fr := file.NewFileRepository(db)
 
-	testFile := &model.File{
+	testFile := &entity.File{
 		OriginalName: "visibility_test.txt",
 		MimeType:     "text/plain",
 		SizeInBytes:  100,
@@ -251,7 +251,7 @@ func TestChangeVisibility_Success(t *testing.T) {
 		t.Error("Expected file to be public after visibility change")
 	}
 
-	searchFile := &model.File{OriginalName: "visibility_test.txt"}
+	searchFile := &entity.File{OriginalName: "visibility_test.txt"}
 	foundFile, err := fr.GetFile(context.Background(), user, searchFile)
 	if err != nil {
 		t.Fatalf("Failed to get file after visibility change: %v", err)
@@ -269,7 +269,7 @@ func TestSetStatus_Success(t *testing.T) {
 	user := createTestUser(t, db, "status@test.com")
 	fr := file.NewFileRepository(db)
 
-	testFile := &model.File{
+	testFile := &entity.File{
 		OriginalName: "status_test.txt",
 		MimeType:     "text/plain",
 		SizeInBytes:  100,
@@ -294,7 +294,7 @@ func TestSetStatus_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", newStatus, updatedFile.Status)
 	}
 
-	searchFile := &model.File{OriginalName: "status_test.txt"}
+	searchFile := &entity.File{OriginalName: "status_test.txt"}
 	foundFile, err := fr.GetFile(context.Background(), user, searchFile)
 	if err != nil {
 		t.Fatalf("Failed to get file after status change: %v", err)
@@ -313,7 +313,7 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 	user2 := createTestUser(t, db, "multi2@test.com")
 	fr := file.NewFileRepository(db)
 
-	file1 := &model.File{
+	file1 := &entity.File{
 		OriginalName: "same_name.txt",
 		MimeType:     "text/plain",
 		SizeInBytes:  100,
@@ -323,7 +323,7 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 		IsPublic:     false,
 	}
 
-	file2 := &model.File{
+	file2 := &entity.File{
 		OriginalName: "same_name.txt",
 		MimeType:     "text/plain",
 		SizeInBytes:  200,
@@ -347,7 +347,7 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 		t.Error("Expected different file IDs for different users")
 	}
 
-	searchFile1 := &model.File{OriginalName: "same_name.txt"}
+	searchFile1 := &entity.File{OriginalName: "same_name.txt"}
 	found1, err := fr.GetFile(context.Background(), user1, searchFile1)
 	if err != nil {
 		t.Fatalf("Failed to get file for user1: %v", err)
@@ -365,11 +365,11 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 	}
 }
 
-func createTestUser(t *testing.T, db *sqlx.DB, email string) *model.User {
+func createTestUser(t *testing.T, db *sqlx.DB, email string) *entity.User {
 	ur := user.NewUserRepository(db)
 	us := service.NewUserService()
 
-	testUser := &model.User{
+	testUser := &entity.User{
 		FirstName: "Test",
 		LastName:  "User",
 		Email:     email,

@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"math/big"
-	"meemo/internal/domain/model"
-
+	"meemo/internal/domain/entity"
 	"time"
 )
 
 type TokenService interface {
-	GenerateTokenPair(user *model.User) (*model.TokenPair, error)
+	GenerateTokenPair(user *entity.User) (*entity.TokenPair, error)
 	ParseAccessToken(tokenString string) (*UserClaims, error)
 	ValidateAccessToken(tokenString string) error
 }
@@ -36,7 +35,7 @@ type UserClaims struct {
 	jwt.RegisteredClaims
 }
 
-func (s *JWTTokenService) GenerateTokenPair(user *model.User) (*model.TokenPair, error) {
+func (s *JWTTokenService) GenerateTokenPair(user *entity.User) (*entity.TokenPair, error) {
 	accessExpiresAt := time.Now().Add(s.accessExpiry)
 	accessClaims := UserClaims{
 		UserID: string(user.ID),
@@ -59,7 +58,7 @@ func (s *JWTTokenService) GenerateTokenPair(user *model.User) (*model.TokenPair,
 		return nil, err
 	}
 
-	return &model.TokenPair{
+	return &entity.TokenPair{
 		AccessToken:  accessTokenString,
 		RefreshToken: refreshTokenString,
 		ExpiresAt:    accessExpiresAt,

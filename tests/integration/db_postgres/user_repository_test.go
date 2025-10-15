@@ -6,10 +6,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	"gopkg.in/yaml.v3"
 	"log"
-	"meemo/internal/domain/model"
+	"meemo/internal/domain/entity"
 	"meemo/internal/domain/user/service"
-	storage "meemo/internal/infradtructure/storage/pg"
-	"meemo/internal/infradtructure/storage/pg/user"
+	storage "meemo/internal/infrastructure/storage/pg"
+	"meemo/internal/infrastructure/storage/pg/user"
 	"os"
 	"testing"
 )
@@ -33,7 +33,7 @@ func TestCreateUser(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	newUser := &model.User{
+	newUser := &entity.User{
 		FirstName: "Тест",
 		LastName:  "Тестов",
 		Email:     "test@test.com",
@@ -64,7 +64,7 @@ func TestGetUserByEmail(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	newUser := &model.User{
+	newUser := &entity.User{
 		FirstName: "Иван",
 		LastName:  "Иванов",
 		Email:     "ivan@test.com",
@@ -108,7 +108,7 @@ func TestUpdateUser(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	newUser := &model.User{
+	newUser := &entity.User{
 		FirstName: "Петр",
 		LastName:  "Петров",
 		Email:     "petr@test.com",
@@ -143,7 +143,7 @@ func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
 
 	ur := user.NewUserRepository(db)
 
-	user1 := &model.User{
+	user1 := &entity.User{
 		FirstName: "Первый",
 		LastName:  "Пользователь",
 		Email:     "user1@test.com",
@@ -155,7 +155,7 @@ func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
-	user2 := &model.User{
+	user2 := &entity.User{
 		FirstName: "Второй",
 		LastName:  "Пользователь",
 		Email:     "user2@test.com",
@@ -176,7 +176,7 @@ func TestUpdateUserEmail_SameEmail(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	newUser := &model.User{
+	newUser := &entity.User{
 		FirstName: "Мария",
 		LastName:  "Иванова",
 		Email:     "maria@test.com",
@@ -213,7 +213,7 @@ func TestUpdateUserEmail_EmptyEmail(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	newUser := &model.User{
+	newUser := &entity.User{
 		FirstName: "Дмитрий",
 		LastName:  "Сидоров",
 		Email:     "dmitry@test.com",
@@ -238,7 +238,7 @@ func TestDeleteUser(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	newUser := &model.User{
+	newUser := &entity.User{
 		FirstName: "Удаляемый",
 		LastName:  "Пользователь",
 		Email:     "delete@test.com",
@@ -272,7 +272,7 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 	db, teardown := initDB(t)
 	defer teardown()
 
-	newUser := &model.User{
+	newUser := &entity.User{
 		FirstName: "Тест",
 		LastName:  "Тестов",
 		Email:     "duplicate@test.com",
@@ -288,7 +288,7 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
-	duplicateUser := &model.User{
+	duplicateUser := &entity.User{
 		FirstName: "Другой",
 		LastName:  "Пользователь",
 		Email:     "duplicate@test.com",

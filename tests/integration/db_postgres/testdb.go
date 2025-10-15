@@ -7,7 +7,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/jmoiron/sqlx"
 	"log"
-	pg "meemo/internal/infradtructure/storage/pg"
+	pg "meemo/internal/infrastructure/storage/pg"
 	"os"
 	"path/filepath"
 	"testing"

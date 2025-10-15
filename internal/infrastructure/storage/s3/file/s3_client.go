@@ -4,14 +4,14 @@ import (
 	"context"
 	"github.com/minio/minio-go/v7"
 	"io"
-	"meemo/internal/domain/model"
+	"meemo/internal/domain/entity"
 )
 
 type S3Client interface {
-	SaveFile(ctx context.Context, user *model.User, fileMetadata *model.File, file io.Reader) error
-	GetFileByOriginalName(ctx context.Context, user *model.User, fileMetadata *model.File, file io.Writer) error
-	DeleteFile(ctx context.Context, user *model.User, fileMetadata *model.File) error
-	RenameFile(ctx context.Context, user *model.User, fileMetadata *model.File, newName string) error
+	SaveFile(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Reader) error
+	GetFileByOriginalName(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Writer) error
+	DeleteFile(ctx context.Context, user *entity.User, fileMetadata *entity.File) error
+	RenameFile(ctx context.Context, user *entity.User, fileMetadata *entity.File, newName string) error
 	CreateBucket(ctx context.Context, bucketName string) error
 	DeleteBucket(ctx context.Context, bucketName string) error
 }
@@ -28,14 +28,14 @@ type S3ClientImpl struct {
 	Client     *minio.Client
 }
 
-func (s3 *S3ClientImpl) SaveFile(ctx context.Context, user *model.User, fileMetadata *model.File, file io.Reader) error {
+func (s3 *S3ClientImpl) SaveFile(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Reader) error {
 	_, err := s3.Client.PutObject(ctx, s3.BucketName, user.Email+fileMetadata.OriginalName, file, fileMetadata.SizeInBytes, minio.PutObjectOptions{
 		ContentType: "application/octet-stream",
 	})
 	return err
 }
 
-func (s3 *S3ClientImpl) GetFileByOriginalName(ctx context.Context, user *model.User, fileMetadata *model.File, file io.Writer) error {
+func (s3 *S3ClientImpl) GetFileByOriginalName(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Writer) error {
 	objectReader, err := s3.Client.GetObject(ctx, s3.BucketName, user.Email+fileMetadata.OriginalName, minio.GetObjectOptions{})
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (s3 *S3ClientImpl) GetFileByOriginalName(ctx context.Context, user *model.U
 	return err
 }
 
-func (s3 *S3ClientImpl) DeleteFile(ctx context.Context, user *model.User, fileMetadata *model.File) error {
+func (s3 *S3ClientImpl) DeleteFile(ctx context.Context, user *entity.User, fileMetadata *entity.File) error {
 	err := s3.Client.RemoveObject(ctx, s3.BucketName, user.Email+fileMetadata.OriginalName, minio.RemoveObjectOptions{})
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (s3 *S3ClientImpl) DeleteFile(ctx context.Context, user *model.User, fileMe
 	return nil
 }
 
-func (s3 *S3ClientImpl) RenameFile(ctx context.Context, user *model.User, fileMetadata *model.File, newName string) error {
+func (s3 *S3ClientImpl) RenameFile(ctx context.Context, user *entity.User, fileMetadata *entity.File, newName string) error {
 	src := minio.CopySrcOptions{
 		Bucket: s3.BucketName,
 		Object: user.Email + fileMetadata.OriginalName,

@@ -2,12 +2,12 @@ package repository
 
 import (
 	"context"
-	"meemo/internal/domain/model"
+	"meemo/internal/domain/entity"
 )
 
 type TokenRepository interface {
-	CreateRefreshToken(ctx context.Context, token *model.RefreshToken) error
-	FindRefreshToken(ctx context.Context, tokenHash string) (*model.RefreshToken, error)
+	CreateRefreshToken(ctx context.Context, token *entity.RefreshToken) error
+	FindRefreshToken(ctx context.Context, tokenHash string) (*entity.RefreshToken, error)
 	RevokeRefreshToken(ctx context.Context, tokenHash string) error
-	RevokeAllUserTokens(ctx context.Context, user *model.User) error
+	RevokeAllUserTokens(ctx context.Context, user *entity.User) error
 }

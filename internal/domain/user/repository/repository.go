@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
-	"meemo/internal/domain/model"
+	"meemo/internal/domain/entity"
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, user *model.User) (*model.User, error)
-	UpdateUser(ctx context.Context, user *model.User) (*model.User, error)
-	UpdateUserEmail(ctx context.Context, user *model.User, email string) (*model.User, error)
-	DeleteUser(ctx context.Context, user *model.User) (*model.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	CreateUser(ctx context.Context, user *entity.User) (*entity.User, error)
+	UpdateUser(ctx context.Context, user *entity.User) (*entity.User, error)
+	UpdateUserEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error)
+	DeleteUser(ctx context.Context, user *entity.User) (*entity.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
 }

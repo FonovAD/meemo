@@ -3,7 +3,7 @@ package file
 const (
 	SaveFileTemplate = `
 INSERT INTO files (user_id, original_name, mime_type, size_in_bytes, s3_bucket, s3_key, status, created_at, updated_at, is_public)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+VALUES (:user_id, :original_name, :mime_type, :size_in_bytes, :s3_bucket, :s3_key, :status, :created_at, :updated_at, :is_public) 
 RETURNING id;`
 
 	DeleteFileTemplate = `

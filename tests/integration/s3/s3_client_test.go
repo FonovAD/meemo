@@ -7,9 +7,9 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"gopkg.in/yaml.v3"
 	"log"
-	"meemo/internal/domain/model"
-	"meemo/internal/infradtructure/storage/s3"
-	"meemo/internal/infradtructure/storage/s3/file"
+	"meemo/internal/domain/entity"
+	"meemo/internal/infrastructure/storage/s3"
+	"meemo/internal/infrastructure/storage/s3/file"
 	"os"
 	"strings"
 	"testing"
@@ -136,14 +136,14 @@ func (ts3 *TestS3Client) forceCleanupBucket(t *testing.T) {
 	}
 }
 
-func createTestUser(email string) *model.User {
-	return &model.User{
+func createTestUser(email string) *entity.User {
+	return &entity.User{
 		Email: email,
 	}
 }
 
-func createTestFile(originalName string, size int64) *model.File {
-	return &model.File{
+func createTestFile(originalName string, size int64) *entity.File {
+	return &entity.File{
 		OriginalName: originalName,
 		SizeInBytes:  size,
 	}
