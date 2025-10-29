@@ -1,6 +1,9 @@
 package entity
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
 type File struct {
 	ID           int64     `json:"id"`
@@ -14,4 +17,6 @@ type File struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	IsPublic     bool      `json:"is_public"`
+	R            io.Reader `json:"-"`
+	W            io.Writer `json:"-"`
 }

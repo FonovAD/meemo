@@ -8,8 +8,8 @@ import (
 )
 
 type S3Client interface {
-	SaveFile(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Reader) error
-	GetFileByOriginalName(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Writer) error
+	SaveFile(ctx context.Context, user *entity.User, fileMetadata *entity.File) error
+	GetFileByOriginalName(ctx context.Context, user *entity.User, fileMetadata *entity.File) error
 	DeleteFile(ctx context.Context, user *entity.User, fileMetadata *entity.File) error
 	RenameFile(ctx context.Context, user *entity.User, fileMetadata *entity.File, newName string) error
 	CreateBucket(ctx context.Context, bucketName string) error
@@ -28,22 +28,22 @@ type S3ClientImpl struct {
 	Client     *minio.Client
 }
 
-func (s3 *S3ClientImpl) SaveFile(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Reader) error {
-	_, err := s3.Client.PutObject(ctx, s3.BucketName, user.Email+fileMetadata.OriginalName, file, fileMetadata.SizeInBytes, minio.PutObjectOptions{
+func (s3 *S3ClientImpl) SaveFile(ctx context.Context, user *entity.User, file *entity.File) error {
+	_, err := s3.Client.PutObject(ctx, s3.BucketName, user.Email+file.OriginalName, file.R, file.SizeInBytes, minio.PutObjectOptions{
 		ContentType: "application/octet-stream",
 	})
 	return err
 }
 
-func (s3 *S3ClientImpl) GetFileByOriginalName(ctx context.Context, user *entity.User, fileMetadata *entity.File, file io.Writer) error {
-	objectReader, err := s3.Client.GetObject(ctx, s3.BucketName, user.Email+fileMetadata.OriginalName, minio.GetObjectOptions{})
+func (s3 *S3ClientImpl) GetFileByOriginalName(ctx context.Context, user *entity.User, file *entity.File) error {
+	objectReader, err := s3.Client.GetObject(ctx, s3.BucketName, user.Email+file.OriginalName, minio.GetObjectOptions{})
 	if err != nil {
 		return err
 	}
 
 	defer objectReader.Close()
 
-	_, err = io.Copy(file, objectReader)
+	_, err = io.Copy(file.W, objectReader)
 	return err
 }
 

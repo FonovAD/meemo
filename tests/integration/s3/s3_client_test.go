@@ -154,13 +154,13 @@ func TestS3Client_SaveAndGetFile(t *testing.T) {
 	defer ts3.cleanup(t)
 
 	user := createTestUser("test@example.com")
-	fileMetadata := createTestFile("test-file.txt", 33)
+	file := createTestFile("test-file.txt", 33)
 
 	testContent := "Hello, this is test file content!"
-	reader := strings.NewReader(testContent)
+	file.R = strings.NewReader(testContent)
 
 	t.Run("SaveFile_Success", func(t *testing.T) {
-		err := ts3.SaveFile(t.Context(), user, fileMetadata, reader)
+		err := ts3.SaveFile(t.Context(), user, file)
 		if err != nil {
 			t.Fatalf("Failed to save file: %v", err)
 		}
@@ -168,7 +168,8 @@ func TestS3Client_SaveAndGetFile(t *testing.T) {
 
 	t.Run("GetFile_Success", func(t *testing.T) {
 		var buf bytes.Buffer
-		err := ts3.GetFileByOriginalName(t.Context(), user, fileMetadata, &buf)
+		file.W = &buf
+		err := ts3.GetFileByOriginalName(t.Context(), user, file)
 		if err != nil {
 			t.Fatalf("Failed to get file: %v", err)
 		}
@@ -184,16 +185,16 @@ func TestS3Client_DeleteFile(t *testing.T) {
 	defer ts3.cleanup(t)
 
 	user := createTestUser("test@example.com")
-	fileMetadata := createTestFile("to-delete.txt", 17)
+	file := createTestFile("to-delete.txt", 17)
 
-	reader := strings.NewReader("content to delete")
-	err := ts3.SaveFile(t.Context(), user, fileMetadata, reader)
+	file.R = strings.NewReader("content to delete")
+	err := ts3.SaveFile(t.Context(), user, file)
 	if err != nil {
 		t.Fatalf("Setup failed: %v", err)
 	}
 
 	t.Run("DeleteFile_Success", func(t *testing.T) {
-		err := ts3.DeleteFile(t.Context(), user, fileMetadata)
+		err := ts3.DeleteFile(t.Context(), user, file)
 		if err != nil {
 			t.Fatalf("Failed to delete file: %v", err)
 		}
@@ -209,7 +210,8 @@ func TestS3Client_RenameFile(t *testing.T) {
 	newName := "new-name.txt"
 
 	originalContent := "original content"
-	err := ts3.SaveFile(t.Context(), user, originalFile, strings.NewReader(originalContent))
+	originalFile.R = strings.NewReader(originalContent)
+	err := ts3.SaveFile(t.Context(), user, originalFile)
 	if err != nil {
 		t.Fatalf("Setup failed: %v", err)
 	}
@@ -221,8 +223,10 @@ func TestS3Client_RenameFile(t *testing.T) {
 		}
 
 		var buf bytes.Buffer
-		newFileMetadata := createTestFile(newName, 100)
-		err = ts3.GetFileByOriginalName(t.Context(), user, newFileMetadata, &buf)
+		newfile := createTestFile(newName, 100)
+		newfile.W = &buf
+
+		err = ts3.GetFileByOriginalName(t.Context(), user, newfile)
 		if err != nil {
 			t.Fatalf("Failed to get renamed file: %v", err)
 		}
@@ -237,8 +241,9 @@ func TestS3Client_Cleanup_Effectiveness(t *testing.T) {
 
 	files := []string{"file1.txt", "file2.txt", "subdir/file3.txt"}
 	for _, filename := range files {
-		fileMetadata := createTestFile(filename, 12)
-		err := ts3.SaveFile(t.Context(), user, fileMetadata, strings.NewReader("test content"))
+		file := createTestFile(filename, 12)
+		file.R = strings.NewReader("test content")
+		err := ts3.SaveFile(t.Context(), user, file)
 		if err != nil {
 			t.Fatalf("Failed to create test file %s: %v", filename, err)
 		}
@@ -262,9 +267,10 @@ func TestS3Client_Parallel(t *testing.T) {
 		defer ts3.cleanup(t)
 
 		user := createTestUser("parallel@example.com")
-		fileMetadata := createTestFile("parallel-test.txt", 16)
+		file := createTestFile("parallel-test.txt", 16)
+		file.R = strings.NewReader("parallel content")
 
-		err := ts3.SaveFile(t.Context(), user, fileMetadata, strings.NewReader("parallel content"))
+		err := ts3.SaveFile(t.Context(), user, file)
 		if err != nil {
 			t.Errorf("Parallel save failed: %v", err)
 		}
@@ -277,9 +283,10 @@ func TestS3Client_Parallel(t *testing.T) {
 		defer ts3.cleanup(t)
 
 		user := createTestUser("parallel2@example.com")
-		fileMetadata := createTestFile("another-test.txt", 14)
+		file := createTestFile("another-test.txt", 14)
+		file.R = strings.NewReader("another content")
 
-		err := ts3.SaveFile(t.Context(), user, fileMetadata, strings.NewReader("another content"))
+		err := ts3.SaveFile(t.Context(), user, file)
 		if err != nil {
 			t.Errorf("Another parallel save failed: %v", err)
 		}
