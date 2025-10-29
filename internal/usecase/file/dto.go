@@ -1,81 +1,113 @@
 package file
 
-import "time"
+import (
+	"io"
+	"time"
+)
 
-// TODO: добавить пагинацию
-type GetAllUserFilesDtoIn struct {
+type SaveFileMetadataDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+	MimeType     string `json:"mime_type"`
+	SizeInBytes  int64  `json:"size_in_bytes"`
+	S3Bucket     string `json:"s3_bucket"`
+	S3Key        string `json:"s3_key"`
+	Status       int    `json:"status"`
+	IsPublic     bool   `json:"is_public"`
+}
+
+type SaveFileMetadataDtoOut struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	MimeType     string    `json:"mime_type"`
+	SizeInBytes  int64     `json:"size_in_bytes"`
+	Status       int       `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	IsPublic     bool      `json:"is_public"`
+}
+
+type SaveFileContentDtoIn struct {
 	Email string `json:"email"`
+	ID    int64  `json:"id"`
+	R     io.Reader
 }
 
-type FileDto struct {
-	Name     string `json:"name"`
-	MimeType string `json:"mime_type"`
-	Size     int64  `json:"size"`
+type SaveFileContentDtoOut struct {
+	LoadingResult bool `json:"loading_result"`
 }
 
-type GetAllUserFilesDtoOut struct {
-	Files []FileDto `json:"files"`
+type GetFileDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+}
+
+type GetFileDtoOut struct {
+	ID           int64  `json:"id"`
+	OriginalName string `json:"original_name"`
+	MimeType     string `json:"mime_type"`
+	SizeInBytes  int64  `json:"size_in_bytes"`
 }
 
 type GetFileInfoDtoIn struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
 }
 
 type GetFileInfoDtoOut struct {
-	Name      string    `json:"name"`
-	MimeType  string    `json:"mime_type"`
-	Size      int64     `json:"size"`
-	Status    int       `json:"status"`
-	S3Bucket  string    `json:"s3_bucket"`
-	S3Key     string    `json:"s3_key"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	IsPublic  bool      `json:"is_public"`
+	ID           int64     `json:"id"`
+	UserID       int64     `json:"user_id"`
+	OriginalName string    `json:"original_name"`
+	MimeType     string    `json:"mime_type"`
+	SizeInBytes  int64     `json:"size_in_bytes"`
+	Status       int       `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	IsPublic     bool      `json:"is_public"`
 }
 
 type RenameFileDtoIn struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	NewName string `json:"new_name"`
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
+	OldName   string `json:"old_name"`
+	NewName   string `json:"new_name"`
 }
 
 type RenameFileDtoOut struct {
+	ID        int64     `json:"id"`
+	OldName   string    `json:"old_name"`
 	NewName   string    `json:"new_name"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type DeleteFileDtoIn struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
 }
 
-type DeleteFileDtoOut struct{}
-
-type SaveFileDtoIn struct {
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	Status   int    `json:"status"`
-	IsPublic bool   `json:"is_public"`
+type DeleteFileDtoOut struct {
+	ID int64 `json:"id"`
 }
 
-type SaveFileDtoOut struct {
-	Name      string    `json:"name"`
-	MimeType  string    `json:"mime_type"`
-	Size      int64     `json:"size"`
-	Status    int       `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	IsPublic  bool      `json:"is_public"`
+type GetAllUserFilesDtoIn struct {
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
 }
 
-type GetFileDtoIn struct {
-	Email string `json:"email"`
-	Name  string `json:"name"`
+type GetAllUserFilesDtoOut struct {
+	Files []FileListItemDto `json:"files"`
 }
 
-type GetFileDtoOut struct {
-	Name     string `json:"name"`
-	MimeType string `json:"mime_type"`
-	Size     int64  `json:"size"`
+type FileListItemDto struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	MimeType     string    `json:"mime_type"`
+	SizeInBytes  int64     `json:"size_in_bytes"`
+	Status       int       `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	IsPublic     bool      `json:"is_public"`
 }
