@@ -17,7 +17,7 @@ func NewUserRepository(conn *sqlx.DB) repository.UserRepository {
 	return &userRepository{conn}
 }
 
-func (ur *userRepository) CreateUser(ctx context.Context, user *entity.User) (*entity.User, error) {
+func (ur *userRepository) Create(ctx context.Context, user *entity.User) (*entity.User, error) {
 	userModel := &model.User{}
 	if err := userModel.EntityToModel(user); err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (ur *userRepository) CreateUser(ctx context.Context, user *entity.User) (*e
 	return nil, sql.ErrNoRows
 }
 
-func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
+func (ur *userRepository) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
 	userModel := &model.User{}
 
 	err := ur.conn.QueryRowxContext(ctx, GetUserByEmailTemplate, email).StructScan(userModel)
@@ -46,7 +46,7 @@ func (ur *userRepository) GetUserByEmail(ctx context.Context, email string) (*en
 	return userModel.ModelToEntity(), nil
 }
 
-func (ur *userRepository) UpdateUser(ctx context.Context, user *entity.User) (*entity.User, error) {
+func (ur *userRepository) Update(ctx context.Context, user *entity.User) (*entity.User, error) {
 	userModel := &model.User{}
 	if err := userModel.EntityToModel(user); err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (ur *userRepository) UpdateUser(ctx context.Context, user *entity.User) (*e
 	return nil, sql.ErrNoRows
 }
 
-func (ur *userRepository) UpdateUserEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error) {
+func (ur *userRepository) UpdateEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error) {
 	userModel := &model.User{}
 	if err := userModel.EntityToModel(user); err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (ur *userRepository) UpdateUserEmail(ctx context.Context, user *entity.User
 	return userModel.ModelToEntity(), nil
 }
 
-func (ur *userRepository) DeleteUser(ctx context.Context, user *entity.User) (*entity.User, error) {
+func (ur *userRepository) Delete(ctx context.Context, user *entity.User) (*entity.User, error) {
 	userModel := &model.User{}
 	if err := userModel.EntityToModel(user); err != nil {
 		return nil, err

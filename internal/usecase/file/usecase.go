@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-type FileUsecase interface {
+type Usecase interface {
 	GetUserFilesList(ctx context.Context, in *GetAllUserFilesDtoIn) (*GetAllUserFilesDtoOut, error)
 	GetFileInfo(ctx context.Context, in *GetFileInfoDtoIn) (*GetFileInfoDtoOut, error)
 	RenameFile(ctx context.Context, in *RenameFileDtoIn) (*RenameFileDtoOut, error)

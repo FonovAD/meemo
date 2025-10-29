@@ -40,4 +40,13 @@ WHERE f.user_id = u.id
   AND u.email = $2 
   AND f.original_name = $3
 RETURNING f.id, f.status;`
+
+	RenameFileTemplate = `
+UPDATE files f
+SET original_name = $1
+FROM users u
+WHERE f.user_id = u.id 
+  AND u.email = $2 
+  AND f.original_name = $3
+RETURNING f.id, f.original_name;`
 )

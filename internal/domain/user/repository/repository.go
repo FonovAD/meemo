@@ -6,9 +6,9 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, user *entity.User) (*entity.User, error)
-	UpdateUser(ctx context.Context, user *entity.User) (*entity.User, error)
-	UpdateUserEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error)
-	DeleteUser(ctx context.Context, user *entity.User) (*entity.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
+	Create(ctx context.Context, user *entity.User) (*entity.User, error)
+	Update(ctx context.Context, user *entity.User) (*entity.User, error)
+	UpdateEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error)
+	Delete(ctx context.Context, user *entity.User) (*entity.User, error)
+	GetByEmail(ctx context.Context, email string) (*entity.User, error)
 }

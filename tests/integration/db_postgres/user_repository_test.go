@@ -44,7 +44,7 @@ func TestCreateUser(t *testing.T) {
 
 	ur := user.NewUserRepository(db)
 
-	createdUser, err := ur.CreateUser(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -74,12 +74,12 @@ func TestGetUserByEmail(t *testing.T) {
 	us.HashPassword(newUser, "password123")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.CreateUser(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	foundUser, err := ur.GetUserByEmail(context.Background(), "ivan@test.com")
+	foundUser, err := ur.GetByEmail(context.Background(), "ivan@test.com")
 	if err != nil {
 		t.Fatalf("Failed to get user by email: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 
 	ur := user.NewUserRepository(db)
 
-	_, err := ur.GetUserByEmail(context.Background(), "nonexistent@test.com")
+	_, err := ur.GetByEmail(context.Background(), "nonexistent@test.com")
 	if err == nil {
 		t.Error("Expected error for non-existent user, got nil")
 	}
@@ -118,7 +118,7 @@ func TestUpdateUser(t *testing.T) {
 	us.HashPassword(newUser, "oldpassword")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.CreateUser(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestUpdateUser(t *testing.T) {
 	createdUser.LastName = "Петров Updated"
 	us.HashPassword(createdUser, "newpassword")
 
-	updatedUser, err := ur.UpdateUser(context.Background(), createdUser)
+	updatedUser, err := ur.Update(context.Background(), createdUser)
 	if err != nil {
 		t.Fatalf("Failed to update user: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
 	}
 	us := service.NewUserService()
 	us.HashPassword(user1, "pass1")
-	_, err := ur.CreateUser(context.Background(), user1)
+	_, err := ur.Create(context.Background(), user1)
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
@@ -161,12 +161,12 @@ func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
 		Email:     "user2@test.com",
 	}
 	us.HashPassword(user2, "pass2")
-	createdUser2, err := ur.CreateUser(context.Background(), user2)
+	createdUser2, err := ur.Create(context.Background(), user2)
 	if err != nil {
 		t.Fatalf("Failed to create second user: %v", err)
 	}
 
-	_, err = ur.UpdateUserEmail(context.Background(), createdUser2, "user1@test.com")
+	_, err = ur.UpdateEmail(context.Background(), createdUser2, "user1@test.com")
 	if err == nil {
 		t.Error("Expected error for duplicate email, got nil")
 	}
@@ -186,12 +186,12 @@ func TestUpdateUserEmail_SameEmail(t *testing.T) {
 	us.HashPassword(newUser, "password")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.CreateUser(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	updatedUser, err := ur.UpdateUserEmail(context.Background(), createdUser, "maria@test.com")
+	updatedUser, err := ur.UpdateEmail(context.Background(), createdUser, "maria@test.com")
 	if err != nil {
 		t.Fatalf("Unexpected error when updating to same email: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestUpdateUserEmail_SameEmail(t *testing.T) {
 		t.Errorf("Expected email %s, got %s", "maria@test.com", updatedUser.Email)
 	}
 
-	foundUser, err := ur.GetUserByEmail(context.Background(), "maria@test.com")
+	foundUser, err := ur.GetByEmail(context.Background(), "maria@test.com")
 	if err != nil {
 		t.Fatalf("Failed to get user after same email update: %v", err)
 	}
@@ -223,12 +223,12 @@ func TestUpdateUserEmail_EmptyEmail(t *testing.T) {
 	us.HashPassword(newUser, "password")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.CreateUser(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, err = ur.UpdateUserEmail(context.Background(), createdUser, "")
+	_, err = ur.UpdateEmail(context.Background(), createdUser, "")
 	if err == nil {
 		t.Error("Expected error for empty email, got nil")
 	}
@@ -248,12 +248,12 @@ func TestDeleteUser(t *testing.T) {
 	us.HashPassword(newUser, "password")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.CreateUser(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	deletedUser, err := ur.DeleteUser(context.Background(), createdUser)
+	deletedUser, err := ur.Delete(context.Background(), createdUser)
 	if err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
@@ -262,7 +262,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Errorf("Expected deleted user ID %d, got %d", createdUser.ID, deletedUser.ID)
 	}
 
-	_, err = ur.GetUserByEmail(context.Background(), "delete@test.com")
+	_, err = ur.GetByEmail(context.Background(), "delete@test.com")
 	if err == nil {
 		t.Error("Expected error when getting deleted user, got nil")
 	}
@@ -283,7 +283,7 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 
 	ur := user.NewUserRepository(db)
 
-	_, err := ur.CreateUser(context.Background(), newUser)
+	_, err := ur.Create(context.Background(), newUser)
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
@@ -295,7 +295,7 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 	}
 	us.HashPassword(duplicateUser, "test2")
 
-	_, err = ur.CreateUser(context.Background(), duplicateUser)
+	_, err = ur.Create(context.Background(), duplicateUser)
 	if err == nil {
 		t.Error("Expected error for duplicate email, got nil")
 	}
