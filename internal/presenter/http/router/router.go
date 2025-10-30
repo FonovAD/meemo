@@ -2,7 +2,6 @@ package router
 
 import (
 	"meemo/internal/presenter/http/handler"
-	"meemo/internal/presenter/http/handler/file"
 	"net/http"
 
 	"github.com/labstack/echo/v4"

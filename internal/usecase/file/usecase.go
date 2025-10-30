@@ -6,6 +6,7 @@ import (
 	"io"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/file/repository"
+	"meemo/internal/domain/file/service"
 	"meemo/internal/infrastructure/storage/s3/file"
 	"time"
 )
@@ -21,22 +22,20 @@ type Usecase interface {
 }
 
 type fileUsecase struct {
-	fileRepo repository.FileRepository
-	s3Client file.S3Client
+	fileRepo    repository.FileRepository
+	s3Client    file.S3Client
+	fileService service.FileService
 }
 
-func NewFileUsecase(fileRepo repository.FileRepository, s3Client file.S3Client) *fileUsecase {
+func NewFileUsecase(fileRepo repository.FileRepository, fileService service.FileService, s3Client file.S3Client) *fileUsecase {
 	return &fileUsecase{
-		fileRepo: fileRepo,
-		s3Client: s3Client,
+		fileRepo:    fileRepo,
+		s3Client:    s3Client,
+		fileService: fileService,
 	}
 }
 
-func (u *fileUsecase) SaveFileMetadata(ctx context.Context, in *SaveFileMetadataDtoIn, inReader *io.Reader) (*SaveFileMetadataDtoOut, error) {
-	if inReader == nil {
-		return nil, errors.New("input reader is nil")
-	}
-
+func (u *fileUsecase) SaveFileMetadata(ctx context.Context, in *SaveFileMetadataDtoIn) (*SaveFileMetadataDtoOut, error) {
 	user := &entity.User{
 		ID:    in.UserID,
 		Email: in.UserEmail,
@@ -53,7 +52,6 @@ func (u *fileUsecase) SaveFileMetadata(ctx context.Context, in *SaveFileMetadata
 		IsPublic:     in.IsPublic,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
-		R:            *inReader,
 	}
 
 	if err := u.s3Client.SaveFile(ctx, user, fileEntity); err != nil {
@@ -74,13 +72,6 @@ func (u *fileUsecase) SaveFileMetadata(ctx context.Context, in *SaveFileMetadata
 		CreatedAt:    savedFile.CreatedAt,
 		IsPublic:     savedFile.IsPublic,
 	}, nil
-}
-
-func NewFileUsecase(fileRepo repository.FileRepository, s3Client file.S3Client) *fileUsecase {
-	return &fileUsecase{
-		fileRepo: fileRepo,
-		s3Client: s3Client,
-	}
 }
 
 func (u *fileUsecase) SaveFileContent(ctx context.Context, in *SaveFileContentDtoIn, inReader io.Reader) (*SaveFileContentDtoOut, error) {
