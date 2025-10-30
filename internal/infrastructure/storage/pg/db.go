@@ -7,7 +7,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func NewPGConnection(config PGConfig) (*sqlx.DB, error) {
+func NewPGConnection(config *PGConfig) (*sqlx.DB, error) {
 	connInfo := fmt.Sprintf(
 		"postgresql://%s:%s@%s:%s/%s?sslmode=disable",
 		config.User, config.Password, config.Host, config.Port, config.Database,
