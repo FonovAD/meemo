@@ -11,4 +11,5 @@ type UserRepository interface {
 	UpdateEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error)
 	Delete(ctx context.Context, user *entity.User) (*entity.User, error)
 	GetByEmail(ctx context.Context, email string) (*entity.User, error)
+	CheckPassword(ctx context.Context, user *entity.User, saldPassword string) (bool, error)
 }

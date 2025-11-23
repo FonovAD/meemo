@@ -26,4 +26,12 @@ const (
 	SET email = $2
 	WHERE email = $1
 	RETURNING id;`
+
+	CheckPassword = `
+	SELECT EXISTS (
+		SELECT 1
+		FROM users
+		WHERE email = $1
+		  AND password_salt = $2
+	) AS is_valid;)`
 )

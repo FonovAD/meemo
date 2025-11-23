@@ -90,3 +90,17 @@ func (ur *userRepository) Delete(ctx context.Context, user *entity.User) (*entit
 	}
 	return userModel.ModelToEntity(), nil
 }
+
+func (ur *userRepository) CheckPassword(ctx context.Context, user *entity.User, saldPassword string) (bool, error) {
+	userModel := &model.User{}
+	if err := userModel.EntityToModel(user); err != nil {
+		return false, err
+	}
+	check := false
+
+	err := ur.conn.QueryRowxContext(ctx, CheckPassword, userModel.Email, userModel.PasswordSalt).Scan(&check)
+	if err != nil {
+		return false, err
+	}
+	return check, nil
+}

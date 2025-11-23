@@ -19,6 +19,8 @@ type Usecase interface {
 	SaveFileMetadata(ctx context.Context, in *SaveFileMetadataDtoIn) (*SaveFileMetadataDtoOut, error)
 	SaveFileContent(ctx context.Context, in *SaveFileContentDtoIn, inReader io.Reader) (*SaveFileContentDtoOut, error)
 	GetFile(ctx context.Context, in *GetFileDtoIn, inWriter io.Writer) (*GetFileDtoOut, error)
+	ChangeVisibility(ctx context.Context, in *ChangeVisibilityDtoIn) (*ChangeVisibilityDtoOut, error)
+	SetStatus(ctx context.Context, in *SetStatusDtoIn) (*SetStatusDtoOut, error)
 }
 
 type fileUsecase struct {
@@ -27,7 +29,7 @@ type fileUsecase struct {
 	fileService service.FileService
 }
 
-func NewFileUsecase(fileRepo repository.FileRepository, fileService service.FileService, s3Client file.S3Client) *fileUsecase {
+func NewFileUsecase(fileRepo repository.FileRepository, fileService service.FileService, s3Client file.S3Client) Usecase {
 	return &fileUsecase{
 		fileRepo:    fileRepo,
 		s3Client:    s3Client,
@@ -208,5 +210,77 @@ func (u *fileUsecase) RenameFile(ctx context.Context, in *RenameFileDtoIn) (*Ren
 }
 
 func (u *fileUsecase) GetUserFilesList(ctx context.Context, in *GetAllUserFilesDtoIn) (*GetAllUserFilesDtoOut, error) {
-	return nil, errors.New("not implemented: GetUserFilesList requires List method in FileRepository")
+	user := &entity.User{
+		ID:    in.UserID,
+		Email: in.UserEmail,
+	}
+
+	files, err := u.fileRepo.List(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	fileList := make([]FileListItemDto, 0, len(files))
+	for _, file := range files {
+		fileList = append(fileList, FileListItemDto{
+			ID:           file.ID,
+			OriginalName: file.OriginalName,
+			MimeType:     file.MimeType,
+			SizeInBytes:  file.SizeInBytes,
+			Status:       file.Status,
+			CreatedAt:    file.CreatedAt,
+			UpdatedAt:    file.UpdatedAt,
+			IsPublic:     file.IsPublic,
+		})
+	}
+
+	return &GetAllUserFilesDtoOut{
+		Files: fileList,
+	}, nil
+}
+
+func (u *fileUsecase) ChangeVisibility(ctx context.Context, in *ChangeVisibilityDtoIn) (*ChangeVisibilityDtoOut, error) {
+	user := &entity.User{
+		ID:    in.UserID,
+		Email: in.UserEmail,
+	}
+
+	fileEntity := &entity.File{
+		OriginalName: in.OriginalName,
+	}
+
+	updatedFile, err := u.fileRepo.ChangeVisibility(ctx, user, fileEntity, in.IsPublic)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ChangeVisibilityDtoOut{
+		ID:           updatedFile.ID,
+		OriginalName: updatedFile.OriginalName,
+		IsPublic:     updatedFile.IsPublic,
+		UpdatedAt:    updatedFile.UpdatedAt,
+	}, nil
+}
+
+func (u *fileUsecase) SetStatus(ctx context.Context, in *SetStatusDtoIn) (*SetStatusDtoOut, error) {
+	user := &entity.User{
+		ID:    in.UserID,
+		Email: in.UserEmail,
+	}
+
+	fileEntity := &entity.File{
+		OriginalName: in.OriginalName,
+	}
+
+	updatedFile, err := u.fileRepo.SetStatus(ctx, user, fileEntity, in.Status)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SetStatusDtoOut{
+		ID:           updatedFile.ID,
+		OriginalName: updatedFile.OriginalName,
+		Status:       updatedFile.Status,
+		UpdatedAt:    updatedFile.UpdatedAt,
+	}, nil
 }

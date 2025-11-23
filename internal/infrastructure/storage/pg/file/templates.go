@@ -25,28 +25,35 @@ WHERE u.email = $1
 
 	ChangeVisibilityTemplate = `
 UPDATE files f
-SET is_public = $1
+SET is_public = $1, updated_at = CURRENT_TIMESTAMP
 FROM users u
 WHERE f.user_id = u.id 
   AND u.email = $2 
   AND f.original_name = $3
-RETURNING f.id, f.is_public;`
+RETURNING f.id, f.is_public, f.updated_at;`
 
 	SetStatusTemplate = `
 UPDATE files f
-SET status = $1
+SET status = $1, updated_at = CURRENT_TIMESTAMP
 FROM users u
 WHERE f.user_id = u.id 
   AND u.email = $2 
   AND f.original_name = $3
-RETURNING f.id, f.status;`
+RETURNING f.id, f.status, f.updated_at;`
 
 	RenameFileTemplate = `
 UPDATE files f
-SET original_name = $1
+SET original_name = $1, updated_at = CURRENT_TIMESTAMP
 FROM users u
 WHERE f.user_id = u.id 
   AND u.email = $2 
   AND f.original_name = $3
-RETURNING f.id, f.original_name;`
+RETURNING f.id, f.original_name, f.updated_at;`
+
+	ListUserFilesTemplate = `
+SELECT f.*
+FROM files f
+INNER JOIN users u ON f.user_id = u.id
+WHERE u.email = $1
+ORDER BY f.created_at DESC;`
 )

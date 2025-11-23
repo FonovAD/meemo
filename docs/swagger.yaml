@@ -1,0 +1,483 @@
+basePath: /api/v1
+definitions:
+  internal_presenter_http_handler_file.SaveFileMetadata:
+    properties:
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      s3_bucket:
+        type: string
+      s3_key:
+        type: string
+      size_in_bytes:
+        type: integer
+      status:
+        type: integer
+      user_email:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.ChangeVisibilityDtoOut:
+    properties:
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      original_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  meemo_internal_usecase_file.DeleteFileDtoOut:
+    properties:
+      id:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.FileListItemDto:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size_in_bytes:
+        type: integer
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  meemo_internal_usecase_file.GetAllUserFilesDtoOut:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/meemo_internal_usecase_file.FileListItemDto'
+        type: array
+    type: object
+  meemo_internal_usecase_file.GetFileInfoDtoOut:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size_in_bytes:
+        type: integer
+      status:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.RenameFileDtoOut:
+    properties:
+      id:
+        type: integer
+      new_name:
+        type: string
+      old_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  meemo_internal_usecase_file.SaveFileContentDtoOut:
+    properties:
+      loading_result:
+        type: boolean
+    type: object
+  meemo_internal_usecase_file.SaveFileMetadataDtoOut:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size_in_bytes:
+        type: integer
+      status:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.SetStatusDtoOut:
+    properties:
+      id:
+        type: integer
+      original_name:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@meemo.com
+    name: API Support
+  description: API для управления файловым хранилищем
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Meemo File Storage API
+  version: "1.0"
+paths:
+  /files:
+    get:
+      description: Возвращает список всех файлов текущего пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.GetAllUserFilesDtoOut'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Получить список файлов
+      tags:
+      - files
+  /files/{id}/content:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Загружает содержимое файла по его ID
+      parameters:
+      - description: ID файла
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Содержимое файла
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.SaveFileContentDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Загрузить содержимое файла
+      tags:
+      - files
+  /files/{name}:
+    delete:
+      description: Удаляет файл по его имени
+      parameters:
+      - description: Имя файла
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.DeleteFileDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Удалить файл
+      tags:
+      - files
+    get:
+      description: Скачивает файл по его имени
+      parameters:
+      - description: Имя файла
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Получить файл
+      tags:
+      - files
+  /files/{name}/info:
+    get:
+      description: Возвращает метаданные файла по его имени
+      parameters:
+      - description: Имя файла
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.GetFileInfoDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Получить информацию о файле
+      tags:
+      - files
+  /files/metadata:
+    post:
+      consumes:
+      - application/json
+      description: Создает метаданные для нового файла
+      parameters:
+      - description: Метаданные файла
+        in: body
+        name: file
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_file.SaveFileMetadata'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.SaveFileMetadataDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Создать метаданные файла
+      tags:
+      - files
+  /files/rename:
+    put:
+      consumes:
+      - application/json
+      description: Изменяет имя файла
+      parameters:
+      - description: Запрос на переименование
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.RenameFileDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Переименовать файл
+      tags:
+      - files
+  /files/status:
+    put:
+      consumes:
+      - application/json
+      description: Изменяет статус файла (например, 0 - активен, 1 - удален)
+      parameters:
+      - description: Запрос на изменение статуса
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.SetStatusDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Изменить статус файла
+      tags:
+      - files
+  /files/visibility:
+    put:
+      consumes:
+      - application/json
+      description: Изменяет видимость файла (публичный/приватный)
+      parameters:
+      - description: Запрос на изменение приватности
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.ChangeVisibilityDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth2: []
+      summary: Изменить приватность файла
+      tags:
+      - files
+  /ping:
+    get:
+      description: Возвращает pong для проверки работоспособности API
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: pong
+          schema:
+            type: string
+      summary: Проверка доступности сервера
+      tags:
+      - health
+schemes:
+- http
+- https
+securityDefinitions:
+  ApiKeyAuth:
+    description: User ID header
+    in: header
+    name: X-User-ID
+    type: apiKey
+  ApiKeyAuth2:
+    description: User Email header
+    in: header
+    name: X-User-Email
+    type: apiKey
+swagger: "2.0"

@@ -90,7 +90,7 @@ func (fr *fileRepository) ChangeVisibility(ctx context.Context, user *entity.Use
 		return nil, err
 	}
 
-	err := fr.conn.QueryRowxContext(ctx, ChangeVisibilityTemplate, isPublic, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.IsPublic)
+	err := fr.conn.QueryRowxContext(ctx, ChangeVisibilityTemplate, isPublic, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.IsPublic, &fileModel.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (fr *fileRepository) SetStatus(ctx context.Context, user *entity.User, file
 		return nil, err
 	}
 
-	err := fr.conn.QueryRowxContext(ctx, SetStatusTemplate, status, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.Status)
+	err := fr.conn.QueryRowxContext(ctx, SetStatusTemplate, status, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.Status, &fileModel.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -126,9 +126,37 @@ func (fr *fileRepository) Rename(ctx context.Context, user *entity.User, file *e
 		return nil, err
 	}
 
-	err := fr.conn.QueryRowxContext(ctx, RenameFileTemplate, newName, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.OriginalName)
+	err := fr.conn.QueryRowxContext(ctx, RenameFileTemplate, newName, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.OriginalName, &fileModel.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return fileModel.ModelToEntity(), nil
+}
+
+func (fr *fileRepository) List(ctx context.Context, user *entity.User) ([]*entity.File, error) {
+	userModel := &model.User{}
+	if err := userModel.EntityToModel(user); err != nil {
+		return nil, err
+	}
+
+	rows, err := fr.conn.QueryxContext(ctx, ListUserFilesTemplate, userModel.Email)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var files []*entity.File
+	for rows.Next() {
+		fileModel := &model.File{}
+		if err := rows.StructScan(fileModel); err != nil {
+			return nil, err
+		}
+		files = append(files, fileModel.ModelToEntity())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return files, nil
 }

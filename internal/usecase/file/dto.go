@@ -111,3 +111,31 @@ type FileListItemDto struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 	IsPublic     bool      `json:"is_public"`
 }
+
+type ChangeVisibilityDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+	IsPublic     bool   `json:"is_public"`
+}
+
+type ChangeVisibilityDtoOut struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	IsPublic     bool      `json:"is_public"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type SetStatusDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+	Status       int    `json:"status"`
+}
+
+type SetStatusDtoOut struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	Status       int       `json:"status"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}

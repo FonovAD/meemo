@@ -12,4 +12,5 @@ type FileRepository interface {
 	Rename(ctx context.Context, user *entity.User, file *entity.File, newName string) (*entity.File, error)
 	ChangeVisibility(ctx context.Context, user *entity.User, file *entity.File, isPublic bool) (*entity.File, error)
 	SetStatus(ctx context.Context, user *entity.User, file *entity.File, status int) (*entity.File, error)
+	List(ctx context.Context, user *entity.User) ([]*entity.File, error)
 }
