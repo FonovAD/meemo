@@ -19,14 +19,17 @@ func NewFileRepository(conn *sqlx.DB) repository.FileRepository {
 	}
 }
 
-func (fr *fileRepository) Save(ctx context.Context, user *entity.User, file *entity.File) (*entity.File, error) {
-	fileModel := &model.File{}
-	if err := fileModel.EntityToModel(file); err != nil {
-		return nil, err
+func (fr *fileRepository) Save(ctx context.Context, userID int64, originalName, mimeType, s3Bucket, s3Key string, sizeInBytes int64, isPublic bool) (*entity.File, error) {
+	fileModel := &model.File{
+		UserID:       userID,
+		OriginalName: originalName,
+		MimeType:     mimeType,
+		S3Bucket:     s3Bucket,
+		S3Key:        s3Key,
+		SizeInBytes:  sizeInBytes,
+		IsPublic:     isPublic,
 	}
-	fileModel.UserID = user.ID
 
-	file.UserID = user.ID
 	rows, err := fr.conn.NamedQueryContext(ctx, SaveFileTemplate, fileModel)
 	if err != nil {
 		return nil, err
@@ -37,109 +40,76 @@ func (fr *fileRepository) Save(ctx context.Context, user *entity.User, file *ent
 		if err := rows.Scan(&fileModel.ID); err != nil {
 			return nil, err
 		}
-		file.ID = fileModel.ID
-		return file, nil
+		return fileModel.ModelToEntity(), nil
 	}
 	return nil, sql.ErrNoRows
 }
 
-func (fr *fileRepository) Delete(ctx context.Context, user *entity.User, file *entity.File) (*entity.File, error) {
+func (fr *fileRepository) Delete(ctx context.Context, userEmail, originalName string) (*entity.File, error) {
 	fileModel := &model.File{}
-	if err := fileModel.EntityToModel(file); err != nil {
-		return nil, err
-	}
-	fileModel.UserID = user.ID
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
 
-	err := fr.conn.QueryRowxContext(ctx, DeleteFileTemplate, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID)
+	err := fr.conn.QueryRowxContext(ctx, DeleteFileTemplate, userEmail, originalName).Scan(&fileModel.ID)
+	if err != nil {
+		return nil, err
+	}
+	fileModel.OriginalName = originalName
+	return fileModel.ModelToEntity(), nil
+}
+
+func (fr *fileRepository) Get(ctx context.Context, fileID int64) (*entity.File, error) {
+	fileModel := &model.File{}
+
+	err := fr.conn.QueryRowxContext(ctx, GetFileTemplate, fileID).StructScan(fileModel)
 	if err != nil {
 		return nil, err
 	}
 	return fileModel.ModelToEntity(), nil
 }
 
-func (fr *fileRepository) Get(ctx context.Context, user *entity.User, file *entity.File) (*entity.File, error) {
+func (fr *fileRepository) GetByOriginalNameAndUserEmail(ctx context.Context, userEmail, originalName string) (*entity.File, error) {
 	fileModel := &model.File{}
-	if err := fileModel.EntityToModel(file); err != nil {
-		return nil, err
-	}
-	fileModel.UserID = user.ID
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
 
-	err := fr.conn.QueryRowxContext(ctx, GetFileTemplate, userModel.Email, fileModel.OriginalName).StructScan(fileModel)
+	err := fr.conn.QueryRowxContext(ctx, GetFileByOriginalNameAndUserEmailTemplate, userEmail, originalName).StructScan(fileModel)
 	if err != nil {
 		return nil, err
 	}
 	return fileModel.ModelToEntity(), nil
 }
 
-func (fr *fileRepository) ChangeVisibility(ctx context.Context, user *entity.User, file *entity.File, isPublic bool) (*entity.File, error) {
+func (fr *fileRepository) ChangeVisibility(ctx context.Context, userEmail, originalName string, isPublic bool) (*entity.File, error) {
 	fileModel := &model.File{}
-	if err := fileModel.EntityToModel(file); err != nil {
-		return nil, err
-	}
-	fileModel.UserID = user.ID
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
 
-	err := fr.conn.QueryRowxContext(ctx, ChangeVisibilityTemplate, isPublic, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.IsPublic, &fileModel.UpdatedAt)
+	err := fr.conn.QueryRowxContext(ctx, ChangeVisibilityTemplate, isPublic, userEmail, originalName).Scan(&fileModel.ID, &fileModel.IsPublic, &fileModel.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	fileModel.OriginalName = originalName
+	return fileModel.ModelToEntity(), nil
+}
+
+func (fr *fileRepository) SetStatus(ctx context.Context, userEmail, originalName string, status int) (*entity.File, error) {
+	fileModel := &model.File{}
+
+	err := fr.conn.QueryRowxContext(ctx, SetStatusTemplate, status, userEmail, originalName).Scan(&fileModel.ID, &fileModel.Status, &fileModel.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	fileModel.OriginalName = originalName
+	return fileModel.ModelToEntity(), nil
+}
+
+func (fr *fileRepository) Rename(ctx context.Context, userEmail, originalName, newName string) (*entity.File, error) {
+	fileModel := &model.File{}
+
+	err := fr.conn.QueryRowxContext(ctx, RenameFileTemplate, newName, userEmail, originalName).Scan(&fileModel.ID, &fileModel.OriginalName, &fileModel.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 	return fileModel.ModelToEntity(), nil
 }
 
-func (fr *fileRepository) SetStatus(ctx context.Context, user *entity.User, file *entity.File, status int) (*entity.File, error) {
-	fileModel := &model.File{}
-	if err := fileModel.EntityToModel(file); err != nil {
-		return nil, err
-	}
-	fileModel.UserID = user.ID
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
-
-	err := fr.conn.QueryRowxContext(ctx, SetStatusTemplate, status, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.Status, &fileModel.UpdatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return fileModel.ModelToEntity(), nil
-}
-
-func (fr *fileRepository) Rename(ctx context.Context, user *entity.User, file *entity.File, newName string) (*entity.File, error) {
-	fileModel := &model.File{}
-	if err := fileModel.EntityToModel(file); err != nil {
-		return nil, err
-	}
-	fileModel.UserID = user.ID
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
-
-	err := fr.conn.QueryRowxContext(ctx, RenameFileTemplate, newName, userModel.Email, fileModel.OriginalName).Scan(&fileModel.ID, &fileModel.OriginalName, &fileModel.UpdatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return fileModel.ModelToEntity(), nil
-}
-
-func (fr *fileRepository) List(ctx context.Context, user *entity.User) ([]*entity.File, error) {
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
-
-	rows, err := fr.conn.QueryxContext(ctx, ListUserFilesTemplate, userModel.Email)
+func (fr *fileRepository) List(ctx context.Context, userEmail string) ([]*entity.File, error) {
+	rows, err := fr.conn.QueryxContext(ctx, ListUserFilesTemplate, userEmail)
 	if err != nil {
 		return nil, err
 	}

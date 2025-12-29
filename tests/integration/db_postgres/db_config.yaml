@@ -1,4 +1,4 @@
-database: "postgres"
+database: "postgres_"
 user: "postgres"
 password: "postgres"
 host: "localhost"

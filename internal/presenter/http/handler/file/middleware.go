@@ -1,7 +1,10 @@
 package file
 
 import (
+	"net/http"
 	"strconv"
+	"strings"
+
 	"github.com/labstack/echo/v4"
 )
 
@@ -13,22 +16,34 @@ const (
 func (h *fileHandler) FileMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
-			// В реальном приложении здесь должна быть аутентификация через JWT
-			// Для тестирования извлекаем user_id и user_email из заголовков
-			userIDStr := ctx.Request().Header.Get("X-User-ID")
-			userEmail := ctx.Request().Header.Get("X-User-Email")
-			
-			if userIDStr != "" {
-				userID, err := strconv.ParseInt(userIDStr, 10, 64)
-				if err == nil {
-					ctx.Set(UserIDKey, userID)
-				}
+			authHeader := ctx.Request().Header.Get("Authorization")
+			if authHeader == "" {
+				return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "authorization header is required"})
 			}
-			
-			if userEmail != "" {
-				ctx.Set(UserEmailKey, userEmail)
+
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+			if token == authHeader {
+				token = authHeader
 			}
-			
+
+			claims, err := h.jwtService.ParseAccessToken(token)
+			if err != nil {
+				return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid or expired token"})
+			}
+
+			exp, err := claims.GetExpirationTime()
+			if err != nil || exp == nil {
+				return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "token expired"})
+			}
+
+			userID, err := strconv.ParseInt(claims.UserID, 10, 64)
+			if err != nil {
+				return ctx.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid token: user_id is not a valid number"})
+			}
+
+			ctx.Set(UserIDKey, userID)
+			ctx.Set(UserEmailKey, claims.Email)
+
 			return next(ctx)
 		}
 	}

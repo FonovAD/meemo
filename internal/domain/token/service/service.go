@@ -6,6 +6,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"math/big"
 	"meemo/internal/domain/entity"
+	"strconv"
 	"time"
 )
 
@@ -37,13 +38,14 @@ type UserClaims struct {
 
 func (s *JWTTokenService) GenerateTokenPair(user *entity.User) (*entity.TokenPair, error) {
 	accessExpiresAt := time.Now().Add(s.accessExpiry)
+	userIDStr := strconv.FormatInt(user.ID, 10)
 	accessClaims := UserClaims{
-		UserID: string(user.ID),
+		UserID: userIDStr,
 		Email:  user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(accessExpiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   string(user.ID),
+			Subject:   userIDStr,
 		},
 	}
 
@@ -93,4 +95,9 @@ func (s *JWTTokenService) ParseAccessToken(tokenString string) (*UserClaims, err
 	}
 
 	return nil, fmt.Errorf("invalid token")
+}
+
+func (s *JWTTokenService) ValidateAccessToken(tokenString string) error {
+	_, err := s.ParseAccessToken(tokenString)
+	return err
 }

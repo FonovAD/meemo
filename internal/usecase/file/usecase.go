@@ -3,12 +3,13 @@ package file
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/file/repository"
 	"meemo/internal/domain/file/service"
 	"meemo/internal/infrastructure/storage/s3/file"
-	"time"
+	"strconv"
 )
 
 type Usecase interface {
@@ -19,6 +20,7 @@ type Usecase interface {
 	SaveFileMetadata(ctx context.Context, in *SaveFileMetadataDtoIn) (*SaveFileMetadataDtoOut, error)
 	SaveFileContent(ctx context.Context, in *SaveFileContentDtoIn, inReader io.Reader) (*SaveFileContentDtoOut, error)
 	GetFile(ctx context.Context, in *GetFileDtoIn, inWriter io.Writer) (*GetFileDtoOut, error)
+	GetFileByID(ctx context.Context, in *GetFileByIDDtoIn, inWriter io.Writer) (*GetFileByIDDtoOut, error)
 	ChangeVisibility(ctx context.Context, in *ChangeVisibilityDtoIn) (*ChangeVisibilityDtoOut, error)
 	SetStatus(ctx context.Context, in *SetStatusDtoIn) (*SetStatusDtoOut, error)
 }
@@ -38,29 +40,18 @@ func NewFileUsecase(fileRepo repository.FileRepository, fileService service.File
 }
 
 func (u *fileUsecase) SaveFileMetadata(ctx context.Context, in *SaveFileMetadataDtoIn) (*SaveFileMetadataDtoOut, error) {
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
 	fileEntity := &entity.File{
 		UserID:       in.UserID,
 		OriginalName: in.OriginalName,
-		MimeType:     in.MimeType,
-		SizeInBytes:  in.SizeInBytes,
-		S3Bucket:     in.S3Bucket,
-		S3Key:        in.S3Key,
-		Status:       in.Status,
 		IsPublic:     in.IsPublic,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		SizeInBytes:  in.SizeInBytes,
+		MimeType:     in.MimeType,
 	}
 
-	if err := u.s3Client.SaveFile(ctx, user, fileEntity); err != nil {
-		return nil, err
-	}
+	u.fileService.CreateFileMetadata(fileEntity)
+	fileEntity.S3Key = strconv.FormatInt(in.UserID, 10) + "/" + fileEntity.OriginalName
 
-	savedFile, err := u.fileRepo.Save(ctx, user, fileEntity)
+	savedFile, err := u.fileRepo.Save(ctx, in.UserID, fileEntity.OriginalName, fileEntity.MimeType, fileEntity.S3Bucket, fileEntity.S3Key, fileEntity.SizeInBytes, fileEntity.IsPublic)
 	if err != nil {
 		return nil, err
 	}
@@ -77,20 +68,14 @@ func (u *fileUsecase) SaveFileMetadata(ctx context.Context, in *SaveFileMetadata
 }
 
 func (u *fileUsecase) SaveFileContent(ctx context.Context, in *SaveFileContentDtoIn, inReader io.Reader) (*SaveFileContentDtoOut, error) {
+
 	if inReader == nil {
 		return nil, errors.New("input reader is nil")
 	}
 
-	user := &entity.User{
-		Email: in.Email,
-	}
+	fmt.Println("fileID: ", in.ID, "sizeInBytes:", in.SizeInBytes)
 
-	fileEntity := &entity.File{
-		ID: in.ID,
-		R:  inReader,
-	}
-
-	if err := u.s3Client.SaveFile(ctx, user, fileEntity); err != nil {
+	if err := u.s3Client.SaveFile(ctx, in.ID, inReader, in.SizeInBytes); err != nil {
 		return nil, err
 	}
 
@@ -104,22 +89,12 @@ func (u *fileUsecase) GetFile(ctx context.Context, in *GetFileDtoIn, inWriter io
 		return nil, errors.New("output writer is nil")
 	}
 
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
-	fileEntity := &entity.File{
-		OriginalName: in.OriginalName,
-		W:            inWriter,
-	}
-
-	metaFile, err := u.fileRepo.Get(ctx, user, fileEntity)
+	metaFile, err := u.fileRepo.GetByOriginalNameAndUserEmail(ctx, in.UserEmail, in.OriginalName)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := u.s3Client.GetFileByOriginalName(ctx, user, metaFile); err != nil {
+	if err := u.s3Client.GetFileByID(ctx, metaFile.ID, inWriter); err != nil {
 		return nil, err
 	}
 
@@ -131,17 +106,34 @@ func (u *fileUsecase) GetFile(ctx context.Context, in *GetFileDtoIn, inWriter io
 	}, nil
 }
 
+func (u *fileUsecase) GetFileByID(ctx context.Context, in *GetFileByIDDtoIn, inWriter io.Writer) (*GetFileByIDDtoOut, error) {
+	if inWriter == nil {
+		return nil, errors.New("output writer is nil")
+	}
+
+	metaFile, err := u.fileRepo.Get(ctx, in.FileID)
+	if err != nil {
+		return nil, err
+	}
+
+	if metaFile.UserID != in.UserID && !metaFile.IsPublic {
+		return nil, errors.New("access denied: file is private")
+	}
+
+	if err := u.s3Client.GetFileByID(ctx, in.FileID, inWriter); err != nil {
+		return nil, err
+	}
+
+	return &GetFileByIDDtoOut{
+		ID:           metaFile.ID,
+		OriginalName: metaFile.OriginalName,
+		MimeType:     metaFile.MimeType,
+		SizeInBytes:  metaFile.SizeInBytes,
+	}, nil
+}
+
 func (u *fileUsecase) GetFileInfo(ctx context.Context, in *GetFileInfoDtoIn) (*GetFileInfoDtoOut, error) {
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
-	fileEntity := &entity.File{
-		OriginalName: in.OriginalName,
-	}
-
-	metaFile, err := u.fileRepo.Get(ctx, user, fileEntity)
+	metaFile, err := u.fileRepo.GetByOriginalNameAndUserEmail(ctx, in.UserEmail, in.OriginalName)
 	if err != nil {
 		return nil, err
 	}
@@ -160,20 +152,16 @@ func (u *fileUsecase) GetFileInfo(ctx context.Context, in *GetFileInfoDtoIn) (*G
 }
 
 func (u *fileUsecase) DeleteFile(ctx context.Context, in *DeleteFileDtoIn) (*DeleteFileDtoOut, error) {
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
-	fileEntity := &entity.File{
-		OriginalName: in.OriginalName,
-	}
-
-	if err := u.s3Client.DeleteFile(ctx, user, fileEntity); err != nil {
+	metaFile, err := u.fileRepo.GetByOriginalNameAndUserEmail(ctx, in.UserEmail, in.OriginalName)
+	if err != nil {
 		return nil, err
 	}
 
-	deletedFile, err := u.fileRepo.Delete(ctx, user, fileEntity)
+	if err := u.s3Client.DeleteFile(ctx, metaFile.ID); err != nil {
+		return nil, err
+	}
+
+	deletedFile, err := u.fileRepo.Delete(ctx, in.UserEmail, in.OriginalName)
 	if err != nil {
 		return nil, err
 	}
@@ -184,19 +172,10 @@ func (u *fileUsecase) DeleteFile(ctx context.Context, in *DeleteFileDtoIn) (*Del
 }
 
 func (u *fileUsecase) RenameFile(ctx context.Context, in *RenameFileDtoIn) (*RenameFileDtoOut, error) {
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
-	fileEntity := &entity.File{
-		OriginalName: in.OldName,
-	}
-
-	if err := u.s3Client.RenameFile(ctx, user, fileEntity, in.NewName); err != nil {
+	if err := u.s3Client.RenameFile(ctx, in.UserEmail, in.OldName, in.NewName); err != nil {
 		return nil, err
 	}
-	renamedFile, err := u.fileRepo.Rename(ctx, user, fileEntity, in.NewName)
+	renamedFile, err := u.fileRepo.Rename(ctx, in.UserEmail, in.OldName, in.NewName)
 	if err != nil {
 		return nil, err
 	}
@@ -210,12 +189,7 @@ func (u *fileUsecase) RenameFile(ctx context.Context, in *RenameFileDtoIn) (*Ren
 }
 
 func (u *fileUsecase) GetUserFilesList(ctx context.Context, in *GetAllUserFilesDtoIn) (*GetAllUserFilesDtoOut, error) {
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
-	files, err := u.fileRepo.List(ctx, user)
+	files, err := u.fileRepo.List(ctx, in.UserEmail)
 	if err != nil {
 		return nil, err
 	}
@@ -240,16 +214,7 @@ func (u *fileUsecase) GetUserFilesList(ctx context.Context, in *GetAllUserFilesD
 }
 
 func (u *fileUsecase) ChangeVisibility(ctx context.Context, in *ChangeVisibilityDtoIn) (*ChangeVisibilityDtoOut, error) {
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
-	fileEntity := &entity.File{
-		OriginalName: in.OriginalName,
-	}
-
-	updatedFile, err := u.fileRepo.ChangeVisibility(ctx, user, fileEntity, in.IsPublic)
+	updatedFile, err := u.fileRepo.ChangeVisibility(ctx, in.UserEmail, in.OriginalName, in.IsPublic)
 	if err != nil {
 		return nil, err
 	}
@@ -263,16 +228,7 @@ func (u *fileUsecase) ChangeVisibility(ctx context.Context, in *ChangeVisibility
 }
 
 func (u *fileUsecase) SetStatus(ctx context.Context, in *SetStatusDtoIn) (*SetStatusDtoOut, error) {
-	user := &entity.User{
-		ID:    in.UserID,
-		Email: in.UserEmail,
-	}
-
-	fileEntity := &entity.File{
-		OriginalName: in.OriginalName,
-	}
-
-	updatedFile, err := u.fileRepo.SetStatus(ctx, user, fileEntity, in.Status)
+	updatedFile, err := u.fileRepo.SetStatus(ctx, in.UserEmail, in.OriginalName, in.Status)
 	if err != nil {
 		return nil, err
 	}

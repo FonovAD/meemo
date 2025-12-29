@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	tokenservice "meemo/internal/domain/token/service"
 	fileusecase "meemo/internal/usecase/file"
 )
 
@@ -16,6 +17,7 @@ type FileHandler interface {
 	SaveFileMetadata(c echo.Context) error
 	SaveFileContent(c echo.Context) error
 	GetFile(c echo.Context) error
+	GetFileByID(c echo.Context) error
 	ChangeVisibility(c echo.Context) error
 	SetStatus(c echo.Context) error
 	FileMiddleware() echo.MiddlewareFunc
@@ -23,11 +25,13 @@ type FileHandler interface {
 
 type fileHandler struct {
 	fileUsecase fileusecase.Usecase
+	jwtService  tokenservice.TokenService
 }
 
-func NewFileHandler(usecase fileusecase.Usecase) FileHandler {
+func NewFileHandler(usecase fileusecase.Usecase, jwtService tokenservice.TokenService) FileHandler {
 	return &fileHandler{
 		fileUsecase: usecase,
+		jwtService:  jwtService,
 	}
 }
 
@@ -41,8 +45,7 @@ func NewFileHandler(usecase fileusecase.Usecase) FileHandler {
 // @Success 201 {object} fileusecase.SaveFileMetadataDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/metadata [post]
 func (h *fileHandler) SaveFileMetadata(c echo.Context) error {
 	var req SaveFileMetadata
@@ -50,27 +53,19 @@ func (h *fileHandler) SaveFileMetadata(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 	}
 
-	// Получаем user_id и user_email из контекста (установлены middleware)
 	userID := getUserID(c)
 	userEmail := getUserEmail(c)
-	
-	// Если не установлены в middleware, используем значения из запроса (для обратной совместимости)
-	if userID == 0 {
-		userID = req.UserID
-	}
-	if userEmail == "" {
-		userEmail = req.UserEmail
+
+	if userID == 0 || userEmail == "" {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "user information not found in token"})
 	}
 
 	dto := fileusecase.SaveFileMetadataDtoIn{
 		UserID:       userID,
 		UserEmail:    userEmail,
-		OriginalName: req.OriginalName,
 		MimeType:     req.MimeType,
 		SizeInBytes:  req.SizeInBytes,
-		S3Bucket:     req.S3Bucket,
-		S3Key:        req.S3Key,
-		Status:       req.Status,
+		OriginalName: req.OriginalName,
 		IsPublic:     req.IsPublic,
 	}
 
@@ -96,8 +91,7 @@ func (h *fileHandler) SaveFileMetadata(c echo.Context) error {
 // @Success 200 {object} fileusecase.SaveFileContentDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/{id}/content [post]
 func (h *fileHandler) SaveFileContent(c echo.Context) error {
 	fileID := c.Param("id")
@@ -105,11 +99,23 @@ func (h *fileHandler) SaveFileContent(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file ID is required"})
 	}
 
-	req := &fileusecase.SaveFileContentDtoIn{
-		ID: mustParseInt64(fileID), // реализуйте безопасный парсинг
+	file, err := c.FormFile("file")
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file is required"})
 	}
 
-	resp, err := h.fileUsecase.SaveFileContent(c.Request().Context(), req, c.Request().Body)
+	src, err := file.Open()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to open uploaded file"})
+	}
+	defer src.Close()
+
+	req := &fileusecase.SaveFileContentDtoIn{
+		ID:          mustParseInt64(fileID),
+		SizeInBytes: file.Size,
+	}
+
+	resp, err := h.fileUsecase.SaveFileContent(c.Request().Context(), req, src)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to upload file content"})
 	}
@@ -119,15 +125,14 @@ func (h *fileHandler) SaveFileContent(c echo.Context) error {
 
 // GetFile получает файл по имени
 // @Summary Получить файл
-// @Description Скачивает файл по его имени
+// @Description Скачивает файл по его имени (включая расширение, например: file.txt)
 // @Tags files
 // @Produce application/octet-stream
-// @Param name path string true "Имя файла"
+// @Param name path string true "Имя файла с расширением"
 // @Success 200 {file} file
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/{name} [get]
 func (h *fileHandler) GetFile(c echo.Context) error {
 	originalName := c.Param("name")
@@ -153,17 +158,54 @@ func (h *fileHandler) GetFile(c echo.Context) error {
 	return nil
 }
 
+// GetFileByID получает файл по ID
+// @Summary Получить файл по ID
+// @Description Скачивает файл по его ID
+// @Tags files
+// @Produce application/octet-stream
+// @Param id path int true "ID файла"
+// @Success 200 {file} file
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Security BearerAuth
+// @Router /files/by-id/{id} [get]
+func (h *fileHandler) GetFileByID(c echo.Context) error {
+	fileIDStr := c.Param("id")
+	if fileIDStr == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "file ID is required"})
+	}
+
+	fileID := mustParseInt64(fileIDStr)
+
+	req := &fileusecase.GetFileByIDDtoIn{
+		FileID:    fileID,
+		UserID:    getUserID(c),
+		UserEmail: getUserEmail(c),
+	}
+
+	c.Response().Header().Set("Content-Disposition", "attachment")
+	c.Response().Header().Set("Content-Type", "application/octet-stream")
+
+	result, err := h.fileUsecase.GetFileByID(c.Request().Context(), req, c.Response().Writer)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
+	}
+
+	c.Response().Header().Set("Content-Disposition", "attachment; filename="+result.OriginalName)
+	c.Response().Status = http.StatusOK
+	return nil
+}
+
 // GetFileInfo получает информацию о файле
 // @Summary Получить информацию о файле
-// @Description Возвращает метаданные файла по его имени
+// @Description Возвращает метаданные файла по его имени (включая расширение, например: file.txt)
 // @Tags files
 // @Produce json
-// @Param name path string true "Имя файла"
+// @Param name path string true "Имя файла с расширением"
 // @Success 200 {object} fileusecase.GetFileInfoDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/{name}/info [get]
 func (h *fileHandler) GetFileInfo(c echo.Context) error {
 	originalName := c.Param("name")
@@ -195,8 +237,7 @@ func (h *fileHandler) GetFileInfo(c echo.Context) error {
 // @Success 200 {object} fileusecase.RenameFileDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/rename [put]
 func (h *fileHandler) RenameFile(c echo.Context) error {
 	var req struct {
@@ -224,15 +265,14 @@ func (h *fileHandler) RenameFile(c echo.Context) error {
 
 // DeleteFile удаляет файл
 // @Summary Удалить файл
-// @Description Удаляет файл по его имени
+// @Description Удаляет файл по его имени (включая расширение, например: file.txt)
 // @Tags files
 // @Produce json
-// @Param name path string true "Имя файла"
+// @Param name path string true "Имя файла с расширением"
 // @Success 200 {object} fileusecase.DeleteFileDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/{name} [delete]
 func (h *fileHandler) DeleteFile(c echo.Context) error {
 	originalName := c.Param("name")
@@ -261,8 +301,7 @@ func (h *fileHandler) DeleteFile(c echo.Context) error {
 // @Produce json
 // @Success 200 {object} fileusecase.GetAllUserFilesDtoOut
 // @Failure 500 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files [get]
 func (h *fileHandler) GetUserFilesList(c echo.Context) error {
 	req := &fileusecase.GetAllUserFilesDtoIn{
@@ -288,8 +327,7 @@ func (h *fileHandler) GetUserFilesList(c echo.Context) error {
 // @Success 200 {object} fileusecase.ChangeVisibilityDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/visibility [put]
 func (h *fileHandler) ChangeVisibility(c echo.Context) error {
 	var req struct {
@@ -325,8 +363,7 @@ func (h *fileHandler) ChangeVisibility(c echo.Context) error {
 // @Success 200 {object} fileusecase.SetStatusDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Security ApiKeyAuth
-// @Security ApiKeyAuth2
+// @Security BearerAuth
 // @Router /files/status [put]
 func (h *fileHandler) SetStatus(c echo.Context) error {
 	var req struct {

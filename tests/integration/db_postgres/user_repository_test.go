@@ -300,3 +300,175 @@ func TestCreateUser_DuplicateEmail(t *testing.T) {
 		t.Error("Expected error for duplicate email, got nil")
 	}
 }
+
+func TestCheckPassword_Success(t *testing.T) {
+	db, teardown := initDB(t)
+	defer teardown()
+
+	newUser := &entity.User{
+		FirstName: "Проверка",
+		LastName:  "Пароля",
+		Email:     "checkpass@test.com",
+	}
+
+	us := service.NewUserService()
+	password := "correctpassword123"
+	us.HashPassword(newUser, password)
+
+	ur := user.NewUserRepository(db)
+	createdUser, err := ur.Create(context.Background(), newUser)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Проверяем пароль с правильным хешем
+	check, err := ur.CheckPassword(context.Background(), createdUser, createdUser.PasswordSalt)
+	if err != nil {
+		t.Fatalf("Failed to check password: %v", err)
+	}
+
+	if !check {
+		t.Error("Expected password check to return true for correct password hash, got false")
+	}
+}
+
+func TestCheckPassword_WrongPassword(t *testing.T) {
+	db, teardown := initDB(t)
+	defer teardown()
+
+	newUser := &entity.User{
+		FirstName: "Неправильный",
+		LastName:  "Пароль",
+		Email:     "wrongpass@test.com",
+	}
+
+	us := service.NewUserService()
+	us.HashPassword(newUser, "correctpassword")
+
+	ur := user.NewUserRepository(db)
+	createdUser, err := ur.Create(context.Background(), newUser)
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Создаем пользователя с другим паролем для проверки
+	wrongPasswordUser := &entity.User{
+		Email:        createdUser.Email,
+		PasswordSalt: "wrong_hash_that_does_not_match",
+	}
+
+	check, err := ur.CheckPassword(context.Background(), wrongPasswordUser, wrongPasswordUser.PasswordSalt)
+	if err != nil {
+		t.Fatalf("Failed to check password: %v", err)
+	}
+
+	if check {
+		t.Error("Expected password check to return false for wrong password hash, got true")
+	}
+}
+
+func TestCheckPassword_NonExistentUser(t *testing.T) {
+	db, teardown := initDB(t)
+	defer teardown()
+
+	ur := user.NewUserRepository(db)
+
+	nonExistentUser := &entity.User{
+		Email:        "nonexistent@test.com",
+		PasswordSalt: "some_hash",
+	}
+
+	check, err := ur.CheckPassword(context.Background(), nonExistentUser, nonExistentUser.PasswordSalt)
+	if err != nil {
+		t.Fatalf("Unexpected error when checking password for non-existent user: %v", err)
+	}
+
+	if check {
+		t.Error("Expected password check to return false for non-existent user, got true")
+	}
+}
+
+func TestCheckPassword_EmptyEmail(t *testing.T) {
+	db, teardown := initDB(t)
+	defer teardown()
+
+	ur := user.NewUserRepository(db)
+
+	emptyEmailUser := &entity.User{
+		Email:        "",
+		PasswordSalt: "some_hash",
+	}
+
+	check, err := ur.CheckPassword(context.Background(), emptyEmailUser, emptyEmailUser.PasswordSalt)
+	if err != nil {
+		t.Fatalf("Unexpected error when checking password with empty email: %v", err)
+	}
+
+	if check {
+		t.Error("Expected password check to return false for empty email, got true")
+	}
+}
+
+func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
+	db, teardown := initDB(t)
+	defer teardown()
+
+	ur := user.NewUserRepository(db)
+	us := service.NewUserService()
+
+	// Создаем первого пользователя
+	user1 := &entity.User{
+		FirstName: "Первый",
+		LastName:  "Пользователь",
+		Email:     "user1@test.com",
+	}
+	us.HashPassword(user1, "samepassword")
+	createdUser1, err := ur.Create(context.Background(), user1)
+	if err != nil {
+		t.Fatalf("Failed to create first user: %v", err)
+	}
+
+	// Создаем второго пользователя с тем же паролем
+	user2 := &entity.User{
+		FirstName: "Второй",
+		LastName:  "Пользователь",
+		Email:     "user2@test.com",
+	}
+	us.HashPassword(user2, "samepassword")
+	createdUser2, err := ur.Create(context.Background(), user2)
+	if err != nil {
+		t.Fatalf("Failed to create second user: %v", err)
+	}
+
+	// Проверяем, что хеши разные (bcrypt генерирует разные хеши)
+	if createdUser1.PasswordSalt == createdUser2.PasswordSalt {
+		t.Error("Expected different password hashes for same password (bcrypt uses random salt), got same hash")
+	}
+
+	// Проверяем пароль первого пользователя
+	check1, err := ur.CheckPassword(context.Background(), createdUser1, createdUser1.PasswordSalt)
+	if err != nil {
+		t.Fatalf("Failed to check password for user1: %v", err)
+	}
+	if !check1 {
+		t.Error("Expected password check to return true for user1, got false")
+	}
+
+	// Проверяем пароль второго пользователя
+	check2, err := ur.CheckPassword(context.Background(), createdUser2, createdUser2.PasswordSalt)
+	if err != nil {
+		t.Fatalf("Failed to check password for user2: %v", err)
+	}
+	if !check2 {
+		t.Error("Expected password check to return true for user2, got false")
+	}
+
+	// Проверяем, что нельзя использовать хеш одного пользователя для другого
+	wrongCheck, err := ur.CheckPassword(context.Background(), createdUser1, createdUser2.PasswordSalt)
+	if err != nil {
+		t.Fatalf("Failed to check password: %v", err)
+	}
+	if wrongCheck {
+		t.Error("Expected password check to return false when using wrong user's hash, got true")
+	}
+}

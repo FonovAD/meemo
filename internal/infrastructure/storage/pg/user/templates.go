@@ -33,5 +33,5 @@ const (
 		FROM users
 		WHERE email = $1
 		  AND password_salt = $2
-	) AS is_valid;)`
+	) AS is_valid;`
 )

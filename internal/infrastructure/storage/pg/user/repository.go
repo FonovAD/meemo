@@ -17,10 +17,12 @@ func NewUserRepository(conn *sqlx.DB) repository.UserRepository {
 	return &userRepository{conn}
 }
 
-func (ur *userRepository) Create(ctx context.Context, user *entity.User) (*entity.User, error) {
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
+func (ur *userRepository) Create(ctx context.Context, firstName, lastName, email, passwordSalt string) (*entity.User, error) {
+	userModel := &model.User{
+		FirstName:    firstName,
+		LastName:     lastName,
+		Email:        email,
+		PasswordSalt: passwordSalt,
 	}
 
 	rows, err := ur.conn.NamedQueryContext(ctx, CreateUserTemplate, &userModel)
@@ -46,10 +48,13 @@ func (ur *userRepository) GetByEmail(ctx context.Context, email string) (*entity
 	return userModel.ModelToEntity(), nil
 }
 
-func (ur *userRepository) Update(ctx context.Context, user *entity.User) (*entity.User, error) {
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
+func (ur *userRepository) Update(ctx context.Context, id int64, firstName, lastName, email, passwordSalt string) (*entity.User, error) {
+	userModel := &model.User{
+		ID:           id,
+		FirstName:    firstName,
+		LastName:     lastName,
+		Email:        email,
+		PasswordSalt: passwordSalt,
 	}
 
 	rows, err := ur.conn.NamedQueryContext(ctx, UpdateUserTemplate, &userModel)
@@ -65,40 +70,32 @@ func (ur *userRepository) Update(ctx context.Context, user *entity.User) (*entit
 	return nil, sql.ErrNoRows
 }
 
-func (ur *userRepository) UpdateEmail(ctx context.Context, user *entity.User, email string) (*entity.User, error) {
+func (ur *userRepository) UpdateEmail(ctx context.Context, oldEmail, newEmail string) (*entity.User, error) {
 	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
 
-	err := ur.conn.QueryRowxContext(ctx, UpdateUserEmailTemplate, userModel.Email, email).Scan(&userModel.ID)
+	err := ur.conn.QueryRowxContext(ctx, UpdateUserEmailTemplate, oldEmail, newEmail).Scan(&userModel.ID)
 	if err != nil {
 		return nil, err
 	}
+	userModel.Email = newEmail
 	return userModel.ModelToEntity(), nil
 }
 
-func (ur *userRepository) Delete(ctx context.Context, user *entity.User) (*entity.User, error) {
+func (ur *userRepository) Delete(ctx context.Context, email string) (*entity.User, error) {
 	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return nil, err
-	}
 
-	err := ur.conn.QueryRowxContext(ctx, DeleteUserTemplate, userModel.Email).Scan(&userModel.ID)
+	err := ur.conn.QueryRowxContext(ctx, DeleteUserTemplate, email).Scan(&userModel.ID)
 	if err != nil {
 		return nil, err
 	}
+	userModel.Email = email
 	return userModel.ModelToEntity(), nil
 }
 
-func (ur *userRepository) CheckPassword(ctx context.Context, user *entity.User, saldPassword string) (bool, error) {
-	userModel := &model.User{}
-	if err := userModel.EntityToModel(user); err != nil {
-		return false, err
-	}
+func (ur *userRepository) CheckPassword(ctx context.Context, email, saldPassword string) (bool, error) {
 	check := false
 
-	err := ur.conn.QueryRowxContext(ctx, CheckPassword, userModel.Email, userModel.PasswordSalt).Scan(&check)
+	err := ur.conn.QueryRowxContext(ctx, CheckPassword, email, saldPassword).Scan(&check)
 	if err != nil {
 		return false, err
 	}

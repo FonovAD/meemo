@@ -1,5 +1,19 @@
 basePath: /api/v1
 definitions:
+  internal_presenter_http_handler_file.ChangeVisibilityRequest:
+    properties:
+      is_public:
+        type: boolean
+      original_name:
+        type: string
+    type: object
+  internal_presenter_http_handler_file.RenameFileRequest:
+    properties:
+      new_name:
+        type: string
+      old_name:
+        type: string
+    type: object
   internal_presenter_http_handler_file.SaveFileMetadata:
     properties:
       is_public:
@@ -8,18 +22,56 @@ definitions:
         type: string
       original_name:
         type: string
-      s3_bucket:
-        type: string
-      s3_key:
-        type: string
       size_in_bytes:
         type: integer
+    type: object
+  internal_presenter_http_handler_file.SetStatusRequest:
+    properties:
+      original_name:
+        type: string
       status:
         type: integer
-      user_email:
+    type: object
+  internal_presenter_http_handler_user.AuthUserRequest:
+    properties:
+      email:
         type: string
-      user_id:
-        type: integer
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_presenter_http_handler_user.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    type: object
+  internal_presenter_http_handler_user.LogoutRequest:
+    properties:
+      access_token:
+        type: string
+    required:
+    - access_token
+    type: object
+  internal_presenter_http_handler_user.UpdateTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
     type: object
   meemo_internal_usecase_file.ChangeVisibilityDtoOut:
     properties:
@@ -128,6 +180,42 @@ definitions:
       updated_at:
         type: string
     type: object
+  meemo_internal_usecase_user.CreateUserDtoOut:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  meemo_internal_usecase_user.GetUserInfoOut:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+    type: object
+  meemo_internal_usecase_user.UpdateTokenDtoOut:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  meemo_internal_usecase_user.UserDtoOut:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -158,8 +246,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Получить список файлов
       tags:
       - files
@@ -199,8 +286,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Загрузить содержимое файла
       tags:
       - files
@@ -233,8 +319,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Удалить файл
       tags:
       - files
@@ -266,8 +351,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Получить файл
       tags:
       - files
@@ -300,8 +384,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Получить информацию о файле
       tags:
       - files
@@ -337,8 +420,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Создать метаданные файла
       tags:
       - files
@@ -353,7 +435,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/internal_presenter_http_handler_file.RenameFileRequest'
       produces:
       - application/json
       responses:
@@ -374,8 +456,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Переименовать файл
       tags:
       - files
@@ -390,7 +471,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/internal_presenter_http_handler_file.SetStatusRequest'
       produces:
       - application/json
       responses:
@@ -411,8 +492,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Изменить статус файла
       tags:
       - files
@@ -427,7 +507,7 @@ paths:
         name: request
         required: true
         schema:
-          type: object
+          $ref: '#/definitions/internal_presenter_http_handler_file.ChangeVisibilityRequest'
       produces:
       - application/json
       responses:
@@ -448,8 +528,7 @@ paths:
               type: string
             type: object
       security:
-      - ApiKeyAuth: []
-      - ApiKeyAuth2: []
+      - BearerAuth: []
       summary: Изменить приватность файла
       tags:
       - files
@@ -466,6 +545,197 @@ paths:
       summary: Проверка доступности сервера
       tags:
       - health
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Авторизует пользователя и возвращает токены доступа
+      parameters:
+      - description: Учетные данные
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.AuthUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.UserDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Аутентификация пользователя
+      tags:
+      - users
+  /users/logout:
+    post:
+      consumes:
+      - application/json
+      description: Инвалидирует токен доступа пользователя
+      parameters:
+      - description: Access token
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Выход из системы
+      tags:
+      - users
+  /users/me:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о текущем авторизованном пользователе
+      parameters:
+      - description: Bearer {access_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.GetUserInfoOut'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить информацию о пользователе
+      tags:
+      - users
+  /users/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Обновляет access token используя refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.UpdateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.UpdateTokenDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновить токен доступа
+      tags:
+      - users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует нового пользователя и возвращает токены доступа
+      parameters:
+      - description: Данные пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.CreateUserDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Создать пользователя
+      tags:
+      - users
 schemes:
 - http
 - https
@@ -479,5 +749,10 @@ securityDefinitions:
     description: User Email header
     in: header
     name: X-User-Email
+    type: apiKey
+  BearerAuth:
+    description: Bearer {access_token}
+    in: header
+    name: Authorization
     type: apiKey
 swagger: "2.0"

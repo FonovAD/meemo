@@ -11,10 +11,10 @@ type SaveFileMetadataDtoIn struct {
 	OriginalName string `json:"original_name"`
 	MimeType     string `json:"mime_type"`
 	SizeInBytes  int64  `json:"size_in_bytes"`
-	S3Bucket     string `json:"s3_bucket"`
-	S3Key        string `json:"s3_key"`
-	Status       int    `json:"status"`
-	IsPublic     bool   `json:"is_public"`
+	//S3Bucket     string `json:"s3_bucket"`
+	//S3Key        string `json:"s3_key"`
+	//Status       int    `json:"status"`
+	IsPublic bool `json:"is_public"`
 }
 
 type SaveFileMetadataDtoOut struct {
@@ -28,9 +28,10 @@ type SaveFileMetadataDtoOut struct {
 }
 
 type SaveFileContentDtoIn struct {
-	Email string `json:"email"`
-	ID    int64  `json:"id"`
-	R     io.Reader
+	Email       string `json:"email"`
+	ID          int64  `json:"id"`
+	SizeInBytes int64  `json:"size_in_bytes"`
+	R           io.Reader
 }
 
 type SaveFileContentDtoOut struct {
@@ -44,6 +45,19 @@ type GetFileDtoIn struct {
 }
 
 type GetFileDtoOut struct {
+	ID           int64  `json:"id"`
+	OriginalName string `json:"original_name"`
+	MimeType     string `json:"mime_type"`
+	SizeInBytes  int64  `json:"size_in_bytes"`
+}
+
+type GetFileByIDDtoIn struct {
+	FileID    int64  `json:"file_id"`
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
+}
+
+type GetFileByIDDtoOut struct {
 	ID           int64  `json:"id"`
 	OriginalName string `json:"original_name"`
 	MimeType     string `json:"mime_type"`

@@ -44,6 +44,11 @@ import (
 // @name X-User-Email
 // @description User Email header
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer {access_token}
+
 var configPathFlag = flag.String("config", ".config.yaml", "path to config file")
 
 func main() {

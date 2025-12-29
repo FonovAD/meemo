@@ -5,6 +5,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	handler "meemo/internal/presenter/http/handler"
 	filehandler "meemo/internal/presenter/http/handler/file"
+	userhandler "meemo/internal/presenter/http/handler/user"
 )
 
 type Interactor interface {
@@ -22,10 +23,12 @@ func NewInteractor(conn *sqlx.DB, s3client *minio.Client, bucket string) Interac
 
 type appHandler struct {
 	filehandler.FileHandler
+	userhandler.UserHandler
 }
 
 func (i *interactor) NewAppHandler() handler.AppHandler {
 	appHandler := &appHandler{}
 	appHandler.FileHandler = i.NewFileHandler()
+	appHandler.UserHandler = i.NewUserHandler()
 	return appHandler
 }

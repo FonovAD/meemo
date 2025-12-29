@@ -14,14 +14,19 @@ WHERE f.user_id = u.id
   AND f.original_name = $2
 RETURNING f.id;`
 
-	// TODO: убрать *
-
 	GetFileTemplate = `
-SELECT f.*
+SELECT f.id, f.user_id, f.original_name, f.mime_type, f.size_in_bytes, 
+       f.s3_bucket, f.s3_key, f.status, f.created_at, f.updated_at, f.is_public
 FROM files f
 INNER JOIN users u ON f.user_id = u.id
-WHERE u.email = $1 
-  AND f.original_name = $2;`
+WHERE f.id = $1`
+
+	GetFileByOriginalNameAndUserEmailTemplate = `
+SELECT f.id, f.user_id, f.original_name, f.mime_type, f.size_in_bytes, 
+       f.s3_bucket, f.s3_key, f.status, f.created_at, f.updated_at, f.is_public
+FROM files f
+INNER JOIN users u ON f.user_id = u.id
+WHERE u.email = $1 AND f.original_name = $2`
 
 	ChangeVisibilityTemplate = `
 UPDATE files f
@@ -51,7 +56,8 @@ WHERE f.user_id = u.id
 RETURNING f.id, f.original_name, f.updated_at;`
 
 	ListUserFilesTemplate = `
-SELECT f.*
+SELECT f.id, f.user_id, f.original_name, f.mime_type, f.size_in_bytes, 
+       f.s3_bucket, f.s3_key, f.status, f.created_at, f.updated_at, f.is_public
 FROM files f
 INNER JOIN users u ON f.user_id = u.id
 WHERE u.email = $1

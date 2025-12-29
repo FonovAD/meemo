@@ -26,5 +26,5 @@ func (i *interactor) NewFileUseCase() usecase.Usecase {
 }
 
 func (i *interactor) NewFileHandler() handler.FileHandler {
-	return handler.NewFileHandler(i.NewFileUseCase())
+	return handler.NewFileHandler(i.NewFileUseCase(), i.NewJWTTokenService())
 }

@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"errors"
+	"golang.org/x/crypto/bcrypt"
 	"meemo/internal/domain/entity"
 	jwtService "meemo/internal/domain/token/service"
 	"meemo/internal/domain/user/repository"
@@ -20,13 +21,14 @@ type UseCase interface {
 type useCase struct {
 	repository repository.UserRepository
 	service    service.UserService
-	jwtService jwtService.JWTTokenService
+	jwtService jwtService.TokenService
 }
 
-func newUseCase(repository repository.UserRepository, service service.UserService) UseCase {
+func NewUseCase(repository repository.UserRepository, service service.UserService, jwtService jwtService.TokenService) UseCase {
 	return &useCase{
 		repository: repository,
 		service:    service,
+		jwtService: jwtService,
 	}
 }
 
@@ -38,7 +40,7 @@ func (u *useCase) CreateUser(ctx context.Context, in *CreateUserDtoIn) (*CreateU
 	}
 	u.service.HashPassword(user, in.Password)
 
-	user, err := u.repository.Create(ctx, user)
+	user, err := u.repository.Create(ctx, user.FirstName, user.LastName, user.Email, user.PasswordSalt)
 	if err != nil {
 		// TODO: Добавить исключение
 		return nil, err
@@ -48,9 +50,9 @@ func (u *useCase) CreateUser(ctx context.Context, in *CreateUserDtoIn) (*CreateU
 		return nil, err
 	}
 	out := &CreateUserDtoOut{
-		token.AccessToken,
-		token.RefreshToken,
-		token.ExpiresAt.Unix(),
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		ExpiresIn:    token.ExpiresAt.Unix(),
 	}
 	return out, nil
 }
@@ -81,29 +83,27 @@ func (u *useCase) GetUserInfo(ctx context.Context, in *GetUserInfoDtoIn) (*GetUs
 }
 
 func (u *useCase) AuthUser(ctx context.Context, in *UserDtoIn) (*UserDtoOut, error) {
-	user := &entity.User{
-		Email: in.Email,
-	}
-	err := u.service.HashPassword(user, in.Password)
+	// Получаем пользователя по email
+	user, err := u.repository.GetByEmail(ctx, in.Email)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid email or password")
 	}
-	check, err := u.repository.CheckPassword(ctx, user, user.PasswordSalt)
+
+	// Проверяем пароль с помощью bcrypt
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordSalt), []byte(in.Password))
 	if err != nil {
-		return nil, err
+		return nil, errors.New("invalid email or password")
 	}
-	if !check {
-		return nil, errors.New("wrong password")
-	}
-	user, err = u.repository.GetByEmail(ctx, user.Email)
+
+	// Генерируем токены
 	token, err := u.jwtService.GenerateTokenPair(user)
 	if err != nil {
 		return nil, err
 	}
 	out := &UserDtoOut{
-		token.AccessToken,
-		token.RefreshToken,
-		token.ExpiresAt.Unix(),
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		ExpiresIn:    token.ExpiresAt.Unix(),
 	}
 	return out, nil
 }

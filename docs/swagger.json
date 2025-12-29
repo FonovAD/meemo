@@ -25,10 +25,7 @@
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Возвращает список всех файлов текущего пользователя",
@@ -62,10 +59,7 @@
             "post": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Создает метаданные для нового файла",
@@ -122,10 +116,7 @@
             "put": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Изменяет имя файла",
@@ -146,7 +137,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/internal_presenter_http_handler_file.RenameFileRequest"
                         }
                     }
                 ],
@@ -182,10 +173,7 @@
             "put": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Изменяет статус файла (например, 0 - активен, 1 - удален)",
@@ -206,7 +194,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/internal_presenter_http_handler_file.SetStatusRequest"
                         }
                     }
                 ],
@@ -242,10 +230,7 @@
             "put": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Изменяет видимость файла (публичный/приватный)",
@@ -266,7 +251,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/internal_presenter_http_handler_file.ChangeVisibilityRequest"
                         }
                     }
                 ],
@@ -302,10 +287,7 @@
             "post": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Загружает содержимое файла по его ID",
@@ -367,10 +349,7 @@
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Скачивает файл по его имени",
@@ -420,10 +399,7 @@
             "delete": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Удаляет файл по его имени",
@@ -475,10 +451,7 @@
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
-                    },
-                    {
-                        "ApiKeyAuth2": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "Возвращает метаданные файла по его имени",
@@ -545,9 +518,324 @@
                     }
                 }
             }
+        },
+        "/users/login": {
+            "post": {
+                "description": "Авторизует пользователя и возвращает токены доступа",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Аутентификация пользователя",
+                "parameters": [
+                    {
+                        "description": "Учетные данные",
+                        "name": "credentials",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_presenter_http_handler_user.AuthUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/meemo_internal_usecase_user.UserDtoOut"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/logout": {
+            "post": {
+                "description": "Инвалидирует токен доступа пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Выход из системы",
+                "parameters": [
+                    {
+                        "description": "Access token",
+                        "name": "token",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_presenter_http_handler_user.LogoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает информацию о текущем авторизованном пользователе",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Получить информацию о пользователе",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer {access_token}",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/meemo_internal_usecase_user.GetUserInfoOut"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/refresh": {
+            "post": {
+                "description": "Обновляет access token используя refresh token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Обновить токен доступа",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "token",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_presenter_http_handler_user.UpdateTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/meemo_internal_usecase_user.UpdateTokenDtoOut"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/users/register": {
+            "post": {
+                "description": "Регистрирует нового пользователя и возвращает токены доступа",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Создать пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные пользователя",
+                        "name": "user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_presenter_http_handler_user.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/meemo_internal_usecase_user.CreateUserDtoOut"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "internal_presenter_http_handler_file.ChangeVisibilityRequest": {
+            "type": "object",
+            "properties": {
+                "is_public": {
+                    "type": "boolean"
+                },
+                "original_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_presenter_http_handler_file.RenameFileRequest": {
+            "type": "object",
+            "properties": {
+                "new_name": {
+                    "type": "string"
+                },
+                "old_name": {
+                    "type": "string"
+                }
+            }
+        },
         "internal_presenter_http_handler_file.SaveFileMetadata": {
             "type": "object",
             "properties": {
@@ -560,23 +848,80 @@
                 "original_name": {
                     "type": "string"
                 },
-                "s3_bucket": {
-                    "type": "string"
-                },
-                "s3_key": {
-                    "type": "string"
-                },
                 "size_in_bytes": {
                     "type": "integer"
+                }
+            }
+        },
+        "internal_presenter_http_handler_file.SetStatusRequest": {
+            "type": "object",
+            "properties": {
+                "original_name": {
+                    "type": "string"
                 },
                 "status": {
                     "type": "integer"
-                },
-                "user_email": {
+                }
+            }
+        },
+        "internal_presenter_http_handler_user.AuthUserRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
                     "type": "string"
                 },
-                "user_id": {
-                    "type": "integer"
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_presenter_http_handler_user.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "first_name",
+                "last_name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "internal_presenter_http_handler_user.LogoutRequest": {
+            "type": "object",
+            "required": [
+                "access_token"
+            ],
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_presenter_http_handler_user.UpdateTokenRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
                 }
             }
         },
@@ -744,6 +1089,62 @@
                     "type": "string"
                 }
             }
+        },
+        "meemo_internal_usecase_user.CreateUserDtoOut": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "meemo_internal_usecase_user.GetUserInfoOut": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "meemo_internal_usecase_user.UpdateTokenDtoOut": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "meemo_internal_usecase_user.UserDtoOut": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -757,6 +1158,12 @@
             "description": "User Email header",
             "type": "apiKey",
             "name": "X-User-Email",
+            "in": "header"
+        },
+        "BearerAuth": {
+            "description": "Bearer {access_token}",
+            "type": "apiKey",
+            "name": "Authorization",
             "in": "header"
         }
     }
