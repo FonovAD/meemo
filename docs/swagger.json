@@ -55,6 +55,58 @@
                 }
             }
         },
+        "/files/by-id/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Скачивает файл по его ID",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "files"
+                ],
+                "summary": "Получить файл по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID файла",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/files/metadata": {
             "post": {
                 "security": [
@@ -352,7 +404,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Скачивает файл по его имени",
+                "description": "Скачивает файл по его имени (включая расширение, например: file.txt)",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -363,7 +415,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Имя файла",
+                        "description": "Имя файла с расширением",
                         "name": "name",
                         "in": "path",
                         "required": true
@@ -402,7 +454,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Удаляет файл по его имени",
+                "description": "Удаляет файл по его имени (включая расширение, например: file.txt)",
                 "produces": [
                     "application/json"
                 ],
@@ -413,7 +465,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Имя файла",
+                        "description": "Имя файла с расширением",
                         "name": "name",
                         "in": "path",
                         "required": true
@@ -454,7 +506,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Возвращает метаданные файла по его имени",
+                "description": "Возвращает метаданные файла по его имени (включая расширение, например: file.txt)",
                 "produces": [
                     "application/json"
                 ],
@@ -465,7 +517,7 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Имя файла",
+                        "description": "Имя файла с расширением",
                         "name": "name",
                         "in": "path",
                         "required": true

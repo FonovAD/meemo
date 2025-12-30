@@ -146,12 +146,19 @@ func (h *fileHandler) GetFile(c echo.Context) error {
 		OriginalName: originalName,
 	}
 
-	c.Response().Header().Set("Content-Disposition", "attachment; filename="+originalName)
-	c.Response().Header().Set("Content-Type", "application/octet-stream") // будет переопределён в UseCase при необходимости
-
-	_, err := h.fileUsecase.GetFile(c.Request().Context(), req, c.Response().Writer)
+	metadata, err := h.fileUsecase.GetFileMetadataByName(c.Request().Context(), req)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": "file not found"})
+	}
+
+	filename := ensureFileExtension(metadata.OriginalName, metadata.MimeType)
+
+	c.Response().Header().Set("Content-Disposition", "attachment; filename="+filename)
+	c.Response().Header().Set("Content-Type", metadata.MimeType)
+
+	_, err = h.fileUsecase.GetFile(c.Request().Context(), req, c.Response().Writer)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to download file"})
 	}
 
 	c.Response().Status = http.StatusOK
@@ -183,15 +190,21 @@ func (h *fileHandler) GetFileByID(c echo.Context) error {
 		UserEmail: getUserEmail(c),
 	}
 
-	c.Response().Header().Set("Content-Disposition", "attachment")
-	c.Response().Header().Set("Content-Type", "application/octet-stream")
-
-	result, err := h.fileUsecase.GetFileByID(c.Request().Context(), req, c.Response().Writer)
+	metadata, err := h.fileUsecase.GetFileMetadataByID(c.Request().Context(), req)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
 	}
 
-	c.Response().Header().Set("Content-Disposition", "attachment; filename="+result.OriginalName)
+	filename := ensureFileExtension(metadata.OriginalName, metadata.MimeType)
+
+	c.Response().Header().Set("Content-Disposition", "attachment; filename="+filename)
+	c.Response().Header().Set("Content-Type", metadata.MimeType)
+
+	_, err = h.fileUsecase.GetFileByID(c.Request().Context(), req, c.Response().Writer)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to download file"})
+	}
+
 	c.Response().Status = http.StatusOK
 	return nil
 }
@@ -233,17 +246,14 @@ func (h *fileHandler) GetFileInfo(c echo.Context) error {
 // @Tags files
 // @Accept json
 // @Produce json
-// @Param request body object true "Запрос на переименование" example({"old_name":"old.txt","new_name":"new.txt"})
+// @Param request body RenameFileRequest true "Запрос на переименование"
 // @Success 200 {object} fileusecase.RenameFileDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /files/rename [put]
 func (h *fileHandler) RenameFile(c echo.Context) error {
-	var req struct {
-		OldName string `json:"old_name"`
-		NewName string `json:"new_name"`
-	}
+	var req RenameFileRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 	}
@@ -323,17 +333,14 @@ func (h *fileHandler) GetUserFilesList(c echo.Context) error {
 // @Tags files
 // @Accept json
 // @Produce json
-// @Param request body object true "Запрос на изменение приватности" example({"original_name":"file.txt","is_public":true})
+// @Param request body ChangeVisibilityRequest true "Запрос на изменение приватности"
 // @Success 200 {object} fileusecase.ChangeVisibilityDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /files/visibility [put]
 func (h *fileHandler) ChangeVisibility(c echo.Context) error {
-	var req struct {
-		OriginalName string `json:"original_name"`
-		IsPublic     bool   `json:"is_public"`
-	}
+	var req ChangeVisibilityRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 	}
@@ -359,17 +366,14 @@ func (h *fileHandler) ChangeVisibility(c echo.Context) error {
 // @Tags files
 // @Accept json
 // @Produce json
-// @Param request body object true "Запрос на изменение статуса" example({"original_name":"file.txt","status":1})
+// @Param request body SetStatusRequest true "Запрос на изменение статуса"
 // @Success 200 {object} fileusecase.SetStatusDtoOut
 // @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Security BearerAuth
 // @Router /files/status [put]
 func (h *fileHandler) SetStatus(c echo.Context) error {
-	var req struct {
-		OriginalName string `json:"original_name"`
-		Status       int    `json:"status"`
-	}
+	var req SetStatusRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 	}
@@ -387,6 +391,60 @@ func (h *fileHandler) SetStatus(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, resp)
+}
+
+func getExtensionFromMimeType(mimeType string) string {
+	if mimeType == "" {
+		return ""
+	}
+	
+	lastSlash := -1
+	for i := len(mimeType) - 1; i >= 0; i-- {
+		if mimeType[i] == '/' {
+			lastSlash = i
+			break
+		}
+	}
+	
+	if lastSlash == -1 || lastSlash == len(mimeType)-1 {
+		return ""
+	}
+	
+	extension := mimeType[lastSlash+1:]
+	
+	for i, ch := range extension {
+		if ch == ';' || ch == '+' {
+			extension = extension[:i]
+			break
+		}
+	}
+	
+	if extension == "" || extension == "octet-stream" {
+		return ""
+	}
+	
+	return "." + extension
+}
+
+func ensureFileExtension(filename, mimeType string) string {
+	hasExtension := false
+	for i := len(filename) - 1; i >= 0 && i > len(filename)-6; i-- {
+		if filename[i] == '.' {
+			hasExtension = true
+			break
+		}
+	}
+	
+	if hasExtension {
+		return filename
+	}
+	
+	ext := getExtensionFromMimeType(mimeType)
+	if ext != "" {
+		return filename + ext
+	}
+	
+	return filename
 }
 
 func mustParseInt64(s string) int64 {

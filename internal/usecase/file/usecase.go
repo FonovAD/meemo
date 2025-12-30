@@ -20,7 +20,9 @@ type Usecase interface {
 	SaveFileMetadata(ctx context.Context, in *SaveFileMetadataDtoIn) (*SaveFileMetadataDtoOut, error)
 	SaveFileContent(ctx context.Context, in *SaveFileContentDtoIn, inReader io.Reader) (*SaveFileContentDtoOut, error)
 	GetFile(ctx context.Context, in *GetFileDtoIn, inWriter io.Writer) (*GetFileDtoOut, error)
+	GetFileMetadataByName(ctx context.Context, in *GetFileDtoIn) (*GetFileDtoOut, error)
 	GetFileByID(ctx context.Context, in *GetFileByIDDtoIn, inWriter io.Writer) (*GetFileByIDDtoOut, error)
+	GetFileMetadataByID(ctx context.Context, in *GetFileByIDDtoIn) (*GetFileByIDDtoOut, error)
 	ChangeVisibility(ctx context.Context, in *ChangeVisibilityDtoIn) (*ChangeVisibilityDtoOut, error)
 	SetStatus(ctx context.Context, in *SetStatusDtoIn) (*SetStatusDtoOut, error)
 }
@@ -84,6 +86,20 @@ func (u *fileUsecase) SaveFileContent(ctx context.Context, in *SaveFileContentDt
 	}, nil
 }
 
+func (u *fileUsecase) GetFileMetadataByName(ctx context.Context, in *GetFileDtoIn) (*GetFileDtoOut, error) {
+	metaFile, err := u.fileRepo.GetByOriginalNameAndUserEmail(ctx, in.UserEmail, in.OriginalName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetFileDtoOut{
+		ID:           metaFile.ID,
+		OriginalName: metaFile.OriginalName,
+		MimeType:     metaFile.MimeType,
+		SizeInBytes:  metaFile.SizeInBytes,
+	}, nil
+}
+
 func (u *fileUsecase) GetFile(ctx context.Context, in *GetFileDtoIn, inWriter io.Writer) (*GetFileDtoOut, error) {
 	if inWriter == nil {
 		return nil, errors.New("output writer is nil")
@@ -106,18 +122,42 @@ func (u *fileUsecase) GetFile(ctx context.Context, in *GetFileDtoIn, inWriter io
 	}, nil
 }
 
+func (u *fileUsecase) getFileMetadataAndCheckAccess(ctx context.Context, fileID, userID int64) (*entity.File, error) {
+	metaFile, err := u.fileRepo.Get(ctx, fileID)
+	if err != nil {
+		return nil, err
+	}
+
+	if metaFile.UserID != userID && !metaFile.IsPublic {
+		return nil, errors.New("access denied: file is private")
+	}
+
+	return metaFile, nil
+}
+
+// GetFileMetadataByID получает только метаданные файла без загрузки содержимого
+func (u *fileUsecase) GetFileMetadataByID(ctx context.Context, in *GetFileByIDDtoIn) (*GetFileByIDDtoOut, error) {
+	metaFile, err := u.getFileMetadataAndCheckAccess(ctx, in.FileID, in.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetFileByIDDtoOut{
+		ID:           metaFile.ID,
+		OriginalName: metaFile.OriginalName,
+		MimeType:     metaFile.MimeType,
+		SizeInBytes:  metaFile.SizeInBytes,
+	}, nil
+}
+
 func (u *fileUsecase) GetFileByID(ctx context.Context, in *GetFileByIDDtoIn, inWriter io.Writer) (*GetFileByIDDtoOut, error) {
 	if inWriter == nil {
 		return nil, errors.New("output writer is nil")
 	}
 
-	metaFile, err := u.fileRepo.Get(ctx, in.FileID)
+	metaFile, err := u.getFileMetadataAndCheckAccess(ctx, in.FileID, in.UserID)
 	if err != nil {
 		return nil, err
-	}
-
-	if metaFile.UserID != in.UserID && !metaFile.IsPublic {
-		return nil, errors.New("access denied: file is private")
 	}
 
 	if err := u.s3Client.GetFileByID(ctx, in.FileID, inWriter); err != nil {

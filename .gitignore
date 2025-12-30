@@ -7,7 +7,6 @@
 *.dll
 *.so
 *.dylib
-
 # Test binary, built with `go test -c`
 *.test
 
@@ -28,8 +27,8 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
 
 # Swagger generated files (docs.go и swagger файлы генерируются автоматически)
 # Раскомментируйте следующую строку, если хотите игнорировать сгенерированные файлы:

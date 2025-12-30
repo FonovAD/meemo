@@ -9,23 +9,19 @@ import (
 )
 
 func NewRouter(e *echo.Echo, h handler.AppHandler) {
-	// Swagger UI
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	e.GET("/ping", Ping)
 
-	// User routes (public)
 	userRouter := e.Group("/api/v1/users")
 	userRouter.POST("/register", h.CreateUser)
 	userRouter.POST("/login", h.AuthUser)
 	userRouter.POST("/refresh", h.UpdateToken)
 	userRouter.POST("/logout", h.Logout)
 
-	// User routes (protected)
 	userProtectedRouter := e.Group("/api/v1/users", h.AuthMiddleware())
 	userProtectedRouter.GET("/me", h.GetUserInfo)
 
-	// File routes (protected)
 	fileRouter := e.Group("/api/v1/files", h.FileMiddleware())
 	fileRouter.GET("", h.GetUserFilesList)
 	fileRouter.POST("/metadata", h.SaveFileMetadata)
@@ -34,7 +30,6 @@ func NewRouter(e *echo.Echo, h handler.AppHandler) {
 	fileRouter.PUT("/visibility", h.ChangeVisibility)
 	fileRouter.PUT("/status", h.SetStatus)
 	
-	// Специфичные роуты идут перед общими параметрическими
 	fileRouter.GET("/by-id/:id", h.GetFileByID)
 	fileRouter.GET("/:name/info", h.GetFileInfo)
 	fileRouter.GET("/:name", h.GetFile)

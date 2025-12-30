@@ -292,9 +292,9 @@ paths:
       - files
   /files/{name}:
     delete:
-      description: Удаляет файл по его имени
+      description: 'Удаляет файл по его имени (включая расширение, например: file.txt)'
       parameters:
-      - description: Имя файла
+      - description: Имя файла с расширением
         in: path
         name: name
         required: true
@@ -324,9 +324,9 @@ paths:
       tags:
       - files
     get:
-      description: Скачивает файл по его имени
+      description: 'Скачивает файл по его имени (включая расширение, например: file.txt)'
       parameters:
-      - description: Имя файла
+      - description: Имя файла с расширением
         in: path
         name: name
         required: true
@@ -357,9 +357,10 @@ paths:
       - files
   /files/{name}/info:
     get:
-      description: Возвращает метаданные файла по его имени
+      description: 'Возвращает метаданные файла по его имени (включая расширение,
+        например: file.txt)'
       parameters:
-      - description: Имя файла
+      - description: Имя файла с расширением
         in: path
         name: name
         required: true
@@ -386,6 +387,39 @@ paths:
       security:
       - BearerAuth: []
       summary: Получить информацию о файле
+      tags:
+      - files
+  /files/by-id/{id}:
+    get:
+      description: Скачивает файл по его ID
+      parameters:
+      - description: ID файла
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить файл по ID
       tags:
       - files
   /files/metadata:
