@@ -8,9 +8,14 @@ import (
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/file/repository"
 	"meemo/internal/domain/file/service"
+	"meemo/internal/infrastructure/logger"
 	"meemo/internal/infrastructure/storage/s3/file"
 	"strconv"
+
+	"go.uber.org/zap"
 )
+
+const MaxStorageBytes int64 = 10 * 1024 * 1024 * 1024
 
 type Usecase interface {
 	GetUserFilesList(ctx context.Context, in *GetAllUserFilesDtoIn) (*GetAllUserFilesDtoOut, error)
@@ -25,23 +30,35 @@ type Usecase interface {
 	GetFileMetadataByID(ctx context.Context, in *GetFileByIDDtoIn) (*GetFileByIDDtoOut, error)
 	ChangeVisibility(ctx context.Context, in *ChangeVisibilityDtoIn) (*ChangeVisibilityDtoOut, error)
 	SetStatus(ctx context.Context, in *SetStatusDtoIn) (*SetStatusDtoOut, error)
+	GetStorageInfo(ctx context.Context, in *GetStorageInfoDtoIn) (*GetStorageInfoDtoOut, error)
 }
 
 type fileUsecase struct {
 	fileRepo    repository.FileRepository
 	s3Client    file.S3Client
 	fileService service.FileService
+	log         logger.Logger
 }
 
-func NewFileUsecase(fileRepo repository.FileRepository, fileService service.FileService, s3Client file.S3Client) Usecase {
+func NewFileUsecase(fileRepo repository.FileRepository, fileService service.FileService, s3Client file.S3Client, log logger.Logger) Usecase {
 	return &fileUsecase{
 		fileRepo:    fileRepo,
 		s3Client:    s3Client,
 		fileService: fileService,
+		log:         log,
 	}
 }
 
 func (u *fileUsecase) SaveFileMetadata(ctx context.Context, in *SaveFileMetadataDtoIn) (*SaveFileMetadataDtoOut, error) {
+	usedSpace, err := u.fileRepo.GetTotalUsedSpace(ctx, in.UserEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	if usedSpace+in.SizeInBytes > MaxStorageBytes {
+		return nil, ErrInsufficientStorage
+	}
+
 	fileEntity := &entity.File{
 		UserID:       in.UserID,
 		OriginalName: in.OriginalName,
@@ -135,7 +152,6 @@ func (u *fileUsecase) getFileMetadataAndCheckAccess(ctx context.Context, fileID,
 	return metaFile, nil
 }
 
-// GetFileMetadataByID получает только метаданные файла без загрузки содержимого
 func (u *fileUsecase) GetFileMetadataByID(ctx context.Context, in *GetFileByIDDtoIn) (*GetFileByIDDtoOut, error) {
 	metaFile, err := u.getFileMetadataAndCheckAccess(ctx, in.FileID, in.UserID)
 	if err != nil {
@@ -198,7 +214,7 @@ func (u *fileUsecase) DeleteFile(ctx context.Context, in *DeleteFileDtoIn) (*Del
 	}
 
 	if err := u.s3Client.DeleteFile(ctx, metaFile.ID); err != nil {
-		return nil, err
+		u.log.Warn("failed to delete file from S3", zap.Int64("fileID", metaFile.ID), zap.String("name", in.OriginalName), zap.Error(err))
 	}
 
 	deletedFile, err := u.fileRepo.Delete(ctx, in.UserEmail, in.OriginalName)
@@ -212,14 +228,13 @@ func (u *fileUsecase) DeleteFile(ctx context.Context, in *DeleteFileDtoIn) (*Del
 }
 
 func (u *fileUsecase) RenameFile(ctx context.Context, in *RenameFileDtoIn) (*RenameFileDtoOut, error) {
-	if err := u.s3Client.RenameFile(ctx, in.UserEmail, in.OldName, in.NewName); err != nil {
-		return nil, err
-	}
 	renamedFile, err := u.fileRepo.Rename(ctx, in.UserEmail, in.OldName, in.NewName)
 	if err != nil {
+		u.log.Error("failed to rename file", zap.String("oldName", in.OldName), zap.String("newName", in.NewName), zap.Error(err))
 		return nil, err
 	}
 
+	u.log.Info("file renamed", zap.Int64("fileID", renamedFile.ID), zap.String("oldName", in.OldName), zap.String("newName", renamedFile.OriginalName))
 	return &RenameFileDtoOut{
 		ID:        renamedFile.ID,
 		OldName:   in.OldName,
@@ -278,5 +293,23 @@ func (u *fileUsecase) SetStatus(ctx context.Context, in *SetStatusDtoIn) (*SetSt
 		OriginalName: updatedFile.OriginalName,
 		Status:       updatedFile.Status,
 		UpdatedAt:    updatedFile.UpdatedAt,
+	}, nil
+}
+
+func (u *fileUsecase) GetStorageInfo(ctx context.Context, in *GetStorageInfoDtoIn) (*GetStorageInfoDtoOut, error) {
+	usedBytes, err := u.fileRepo.GetTotalUsedSpace(ctx, in.UserEmail)
+	if err != nil {
+		return nil, err
+	}
+
+	availableBytes := MaxStorageBytes - usedBytes
+	if availableBytes < 0 {
+		availableBytes = 0
+	}
+
+	return &GetStorageInfoDtoOut{
+		UsedBytes:      usedBytes,
+		AvailableBytes: availableBytes,
+		TotalBytes:     MaxStorageBytes,
 	}, nil
 }

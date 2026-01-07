@@ -14,4 +14,5 @@ type FileRepository interface {
 	ChangeVisibility(ctx context.Context, userEmail, originalName string, isPublic bool) (*entity.File, error)
 	SetStatus(ctx context.Context, userEmail, originalName string, status int) (*entity.File, error)
 	List(ctx context.Context, userEmail string) ([]*entity.File, error)
+	GetTotalUsedSpace(ctx context.Context, userEmail string) (int64, error)
 }

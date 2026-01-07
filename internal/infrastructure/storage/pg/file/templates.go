@@ -62,4 +62,10 @@ FROM files f
 INNER JOIN users u ON f.user_id = u.id
 WHERE u.email = $1
 ORDER BY f.created_at DESC;`
+
+	GetTotalUsedSpaceTemplate = `
+SELECT COALESCE(SUM(f.size_in_bytes), 0)
+FROM files f
+INNER JOIN users u ON f.user_id = u.id
+WHERE u.email = $1;`
 )

@@ -2,33 +2,25 @@ package db_postgres
 
 import (
 	"context"
-	"github.com/jmoiron/sqlx"
-	"meemo/internal/domain/entity"
-	"meemo/internal/domain/user/service"
 	"meemo/internal/infrastructure/storage/pg/file"
 	"meemo/internal/infrastructure/storage/pg/user"
 	"testing"
 )
 
 func TestSaveFile_Success(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	testUser := createTestUser(t, db, "fileuser@test.com")
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "fileuser@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
 
 	fr := file.NewFileRepository(db)
 
-	testFile := &entity.File{
-		OriginalName: "test_document.pdf",
-		MimeType:     "application/pdf",
-		SizeInBytes:  1024,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/12345.pdf",
-		Status:       0,
-		IsPublic:     false,
-	}
-
-	savedFile, err := fr.Save(t.Context(), testUser, testFile)
+	savedFile, err := fr.Save(context.Background(), testUser.ID, "test_document.pdf", "application/pdf", "test-bucket", "files/12345.pdf", 1024, false)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
@@ -36,8 +28,8 @@ func TestSaveFile_Success(t *testing.T) {
 	if savedFile.ID == 0 {
 		t.Error("Expected file ID to be set")
 	}
-	if savedFile.OriginalName != testFile.OriginalName {
-		t.Errorf("Expected original name %s, got %s", testFile.OriginalName, savedFile.OriginalName)
+	if savedFile.OriginalName != "test_document.pdf" {
+		t.Errorf("Expected original name %s, got %s", "test_document.pdf", savedFile.OriginalName)
 	}
 	if savedFile.UserID != testUser.ID {
 		t.Errorf("Expected user ID %d, got %d", testUser.ID, savedFile.UserID)
@@ -45,67 +37,48 @@ func TestSaveFile_Success(t *testing.T) {
 }
 
 func TestSaveFile_DuplicateName(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "duplicate@test.com")
-	fr := file.NewFileRepository(db)
-
-	testFile := &entity.File{
-		OriginalName: "duplicate.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/1.txt",
-		Status:       0,
-		IsPublic:     false,
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "duplicate@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	_, err := fr.Save(context.Background(), user, testFile)
+	fr := file.NewFileRepository(db)
+
+	_, err = fr.Save(context.Background(), testUser.ID, "duplicate.txt", "text/plain", "test-bucket", "files/1.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save first file: %v", err)
 	}
 
-	duplicateFile := &entity.File{
-		OriginalName: "duplicate.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  200,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/2.txt",
-		Status:       0,
-		IsPublic:     true,
-	}
-
-	_, err = fr.Save(context.Background(), user, duplicateFile)
+	_, err = fr.Save(context.Background(), testUser.ID, "duplicate.txt", "text/plain", "test-bucket", "files/2.txt", 200, true)
 	if err == nil {
 		t.Error("Expected error for duplicate file name, got nil")
 	}
 }
 
 func TestGetFile_Success(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "getfile@test.com")
-	fr := file.NewFileRepository(db)
-
-	testFile := &entity.File{
-		OriginalName: "get_test.jpg",
-		MimeType:     "image/jpeg",
-		SizeInBytes:  2048,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/get_test.jpg",
-		Status:       1,
-		IsPublic:     true,
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "getfile@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	savedFile, err := fr.Save(context.Background(), user, testFile)
+	fr := file.NewFileRepository(db)
+
+	savedFile, err := fr.Save(context.Background(), testUser.ID, "get_test.jpg", "image/jpeg", "test-bucket", "files/get_test.jpg", 2048, true)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	searchFile := &entity.File{OriginalName: "get_test.jpg"}
-	foundFile, err := fr.Get(context.Background(), user, searchFile)
+	foundFile, err := fr.Get(context.Background(), savedFile.ID)
 	if err != nil {
 		t.Fatalf("Failed to get file: %v", err)
 	}
@@ -121,73 +94,96 @@ func TestGetFile_Success(t *testing.T) {
 	}
 }
 
-func TestGetFile_NotFound(t *testing.T) {
-	db, teardown := initDB(t)
+func TestGetFileByOriginalNameAndUserEmail(t *testing.T) {
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "notfound@test.com")
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "getbyname@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
 	fr := file.NewFileRepository(db)
 
-	searchFile := &entity.File{OriginalName: "nonexistent.txt"}
-	_, err := fr.Get(context.Background(), user, searchFile)
+	savedFile, err := fr.Save(context.Background(), testUser.ID, "byname_test.jpg", "image/jpeg", "test-bucket", "files/byname_test.jpg", 2048, true)
+	if err != nil {
+		t.Fatalf("Failed to save file: %v", err)
+	}
+
+	foundFile, err := fr.GetByOriginalNameAndUserEmail(context.Background(), testUser.Email, "byname_test.jpg")
+	if err != nil {
+		t.Fatalf("Failed to get file by name and email: %v", err)
+	}
+
+	if foundFile.ID != savedFile.ID {
+		t.Errorf("Expected file ID %d, got %d", savedFile.ID, foundFile.ID)
+	}
+}
+
+func TestGetFile_NotFound(t *testing.T) {
+	db, teardown := initTestDB(t)
+	defer teardown()
+
+	fr := file.NewFileRepository(db)
+
+	_, err := fr.Get(context.Background(), 999999)
 	if err == nil {
 		t.Error("Expected error for non-existent file, got nil")
 	}
 }
 
 func TestGetFile_WrongUser(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user1 := createTestUser(t, db, "user1@test.com")
-	user2 := createTestUser(t, db, "user2@test.com")
-	fr := file.NewFileRepository(db)
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
 
-	testFile := &entity.File{
-		OriginalName: "private.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/private.txt",
-		Status:       0,
-		IsPublic:     false,
+	user1, err := ur.Create(context.Background(), "Test", "User1", "user1@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create user1: %v", err)
 	}
 
-	_, err := fr.Save(context.Background(), user1, testFile)
+	_, err = ur.Create(context.Background(), "Test", "User2", "user2@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create user2: %v", err)
+	}
+
+	fr := file.NewFileRepository(db)
+
+	_, err = fr.Save(context.Background(), user1.ID, "private.txt", "text/plain", "test-bucket", "files/private.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	searchFile := &entity.File{OriginalName: "private.txt"}
-	_, err = fr.Get(context.Background(), user2, searchFile)
+	// Попытка получить файл user1 по email user2
+	_, err = fr.GetByOriginalNameAndUserEmail(context.Background(), "user2@test.com", "private.txt")
 	if err == nil {
 		t.Error("Expected error when accessing other user's file, got nil")
 	}
 }
 
 func TestDeleteFile_Success(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "delete@test.com")
-	fr := file.NewFileRepository(db)
-
-	testFile := &entity.File{
-		OriginalName: "to_delete.pdf",
-		MimeType:     "application/pdf",
-		SizeInBytes:  512,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/to_delete.pdf",
-		Status:       0,
-		IsPublic:     false,
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "delete@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	savedFile, err := fr.Save(context.Background(), user, testFile)
+	fr := file.NewFileRepository(db)
+
+	savedFile, err := fr.Save(context.Background(), testUser.ID, "to_delete.pdf", "application/pdf", "test-bucket", "files/to_delete.pdf", 512, false)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	deletedFile, err := fr.Delete(context.Background(), user, savedFile)
+	deletedFile, err := fr.Delete(context.Background(), testUser.Email, savedFile.OriginalName)
 	if err != nil {
 		t.Fatalf("Failed to delete file: %v", err)
 	}
@@ -196,50 +192,50 @@ func TestDeleteFile_Success(t *testing.T) {
 		t.Errorf("Expected deleted file ID %d, got %d", savedFile.ID, deletedFile.ID)
 	}
 
-	searchFile := &entity.File{OriginalName: "to_delete.pdf"}
-	_, err = fr.Get(context.Background(), user, searchFile)
+	_, err = fr.Get(context.Background(), savedFile.ID)
 	if err == nil {
 		t.Error("Expected error when getting deleted file, got nil")
 	}
 }
 
 func TestDeleteFile_NotFound(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "deletenotfound@test.com")
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "deletenotfound@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
 	fr := file.NewFileRepository(db)
 
-	nonExistentFile := &entity.File{OriginalName: "nonexistent.txt"}
-	_, err := fr.Delete(context.Background(), user, nonExistentFile)
+	_, err = fr.Delete(context.Background(), testUser.Email, "nonexistent.txt")
 	if err == nil {
 		t.Error("Expected error when deleting non-existent file, got nil")
 	}
 }
 
 func TestChangeVisibility_Success(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "visibility@test.com")
-	fr := file.NewFileRepository(db)
-
-	testFile := &entity.File{
-		OriginalName: "visibility_test.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/visibility.txt",
-		Status:       0,
-		IsPublic:     false,
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "visibility@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	savedFile, err := fr.Save(context.Background(), user, testFile)
+	fr := file.NewFileRepository(db)
+
+	savedFile, err := fr.Save(context.Background(), testUser.ID, "visibility_test.txt", "text/plain", "test-bucket", "files/visibility.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
-	updatedFile, err := fr.ChangeVisibility(context.Background(), user, savedFile, true)
+	updatedFile, err := fr.ChangeVisibility(context.Background(), testUser.Email, savedFile.OriginalName, true)
 	if err != nil {
 		t.Fatalf("Failed to change visibility: %v", err)
 	}
@@ -248,8 +244,7 @@ func TestChangeVisibility_Success(t *testing.T) {
 		t.Error("Expected file to be public after visibility change")
 	}
 
-	searchFile := &entity.File{OriginalName: "visibility_test.txt"}
-	foundFile, err := fr.Get(context.Background(), user, searchFile)
+	foundFile, err := fr.GetByOriginalNameAndUserEmail(context.Background(), testUser.Email, "visibility_test.txt")
 	if err != nil {
 		t.Fatalf("Failed to get file after visibility change: %v", err)
 	}
@@ -260,29 +255,25 @@ func TestChangeVisibility_Success(t *testing.T) {
 }
 
 func TestSetStatus_Success(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "status@test.com")
-	fr := file.NewFileRepository(db)
-
-	testFile := &entity.File{
-		OriginalName: "status_test.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/status.txt",
-		Status:       0,
-		IsPublic:     false,
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "status@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	savedFile, err := fr.Save(context.Background(), user, testFile)
+	fr := file.NewFileRepository(db)
+
+	savedFile, err := fr.Save(context.Background(), testUser.ID, "status_test.txt", "text/plain", "test-bucket", "files/status.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
 	newStatus := 1
-	updatedFile, err := fr.SetStatus(context.Background(), user, savedFile, newStatus)
+	updatedFile, err := fr.SetStatus(context.Background(), testUser.Email, savedFile.OriginalName, newStatus)
 	if err != nil {
 		t.Fatalf("Failed to set status: %v", err)
 	}
@@ -291,8 +282,7 @@ func TestSetStatus_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", newStatus, updatedFile.Status)
 	}
 
-	searchFile := &entity.File{OriginalName: "status_test.txt"}
-	foundFile, err := fr.Get(context.Background(), user, searchFile)
+	foundFile, err := fr.GetByOriginalNameAndUserEmail(context.Background(), testUser.Email, "status_test.txt")
 	if err != nil {
 		t.Fatalf("Failed to get file after status change: %v", err)
 	}
@@ -303,39 +293,30 @@ func TestSetStatus_Success(t *testing.T) {
 }
 
 func TestMultipleUsersSameFileName(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user1 := createTestUser(t, db, "multi1@test.com")
-	user2 := createTestUser(t, db, "multi2@test.com")
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+
+	user1, err := ur.Create(context.Background(), "Test", "User1", "multi1@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create user1: %v", err)
+	}
+
+	user2, err := ur.Create(context.Background(), "Test", "User2", "multi2@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create user2: %v", err)
+	}
+
 	fr := file.NewFileRepository(db)
 
-	file1 := &entity.File{
-		OriginalName: "same_name.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/user1_same.txt",
-		Status:       0,
-		IsPublic:     false,
-	}
-
-	file2 := &entity.File{
-		OriginalName: "same_name.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  200,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/user2_same.txt",
-		Status:       0,
-		IsPublic:     true,
-	}
-
-	saved1, err := fr.Save(context.Background(), user1, file1)
+	saved1, err := fr.Save(context.Background(), user1.ID, "same_name.txt", "text/plain", "test-bucket", "files/user1_same.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save file for user1: %v", err)
 	}
 
-	saved2, err := fr.Save(context.Background(), user2, file2)
+	saved2, err := fr.Save(context.Background(), user2.ID, "same_name.txt", "text/plain", "test-bucket", "files/user2_same.txt", 200, true)
 	if err != nil {
 		t.Fatalf("Failed to save file for user2: %v", err)
 	}
@@ -344,8 +325,7 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 		t.Error("Expected different file IDs for different users")
 	}
 
-	searchFile1 := &entity.File{OriginalName: "same_name.txt"}
-	found1, err := fr.Get(context.Background(), user1, searchFile1)
+	found1, err := fr.GetByOriginalNameAndUserEmail(context.Background(), user1.Email, "same_name.txt")
 	if err != nil {
 		t.Fatalf("Failed to get file for user1: %v", err)
 	}
@@ -353,7 +333,7 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 		t.Errorf("User1 got wrong file ID: expected %d, got %d", saved1.ID, found1.ID)
 	}
 
-	found2, err := fr.Get(context.Background(), user2, searchFile1)
+	found2, err := fr.GetByOriginalNameAndUserEmail(context.Background(), user2.Email, "same_name.txt")
 	if err != nil {
 		t.Fatalf("Failed to get file for user2: %v", err)
 	}
@@ -362,50 +342,27 @@ func TestMultipleUsersSameFileName(t *testing.T) {
 	}
 }
 
-func createTestUser(t *testing.T, db *sqlx.DB, email string) *entity.User {
+func TestRenameFile_Success(t *testing.T) {
+	db, teardown := initTestDB(t)
+	defer teardown()
+
 	ur := user.NewUserRepository(db)
-	us := service.NewUserService()
-
-	testUser := &entity.User{
-		FirstName: "Test",
-		LastName:  "User",
-		Email:     email,
-	}
-	us.HashPassword(testUser, "password")
-
-	createdUser, err := ur.Create(context.Background(), testUser)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "rename@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create test user: %v", err)
 	}
 
-	return createdUser
-}
-
-func TestRenameFile_Success(t *testing.T) {
-	db, teardown := initDB(t)
-	defer teardown()
-
-	user := createTestUser(t, db, "rename@test.com")
 	fr := file.NewFileRepository(db)
 
 	originalName := "old_name.txt"
-	testFile := &entity.File{
-		OriginalName: originalName,
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/old_name.txt",
-		Status:       0,
-		IsPublic:     false,
-	}
-
-	savedFile, err := fr.Save(context.Background(), user, testFile)
+	savedFile, err := fr.Save(context.Background(), testUser.ID, originalName, "text/plain", "test-bucket", "files/old_name.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save file: %v", err)
 	}
 
 	newName := "new_name.txt"
-	renamedFile, err := fr.Rename(context.Background(), user, savedFile, newName)
+	renamedFile, err := fr.Rename(context.Background(), testUser.Email, originalName, newName)
 	if err != nil {
 		t.Fatalf("Failed to rename file: %v", err)
 	}
@@ -414,12 +371,12 @@ func TestRenameFile_Success(t *testing.T) {
 		t.Errorf("Expected renamed file name %s, got %s", newName, renamedFile.OriginalName)
 	}
 
-	_, err = fr.Get(context.Background(), user, &entity.File{OriginalName: originalName})
+	_, err = fr.GetByOriginalNameAndUserEmail(context.Background(), testUser.Email, originalName)
 	if err == nil {
 		t.Error("Expected error when fetching file by old name after rename, got nil")
 	}
 
-	foundFile, err := fr.Get(context.Background(), user, &entity.File{OriginalName: newName})
+	foundFile, err := fr.GetByOriginalNameAndUserEmail(context.Background(), testUser.Email, newName)
 	if err != nil {
 		t.Fatalf("Failed to get renamed file: %v", err)
 	}
@@ -429,34 +386,35 @@ func TestRenameFile_Success(t *testing.T) {
 }
 
 func TestRenameFile_WrongUser(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user1 := createTestUser(t, db, "owner@test.com")
-	user2 := createTestUser(t, db, "attacker@test.com")
-	fr := file.NewFileRepository(db)
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
 
-	testFile := &entity.File{
-		OriginalName: "private_file.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/private.txt",
-		Status:       0,
-		IsPublic:     false,
+	user1, err := ur.Create(context.Background(), "Test", "Owner", "owner@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create user1: %v", err)
 	}
 
-	savedFile, err := fr.Save(context.Background(), user1, testFile)
+	user2, err := ur.Create(context.Background(), "Test", "Attacker", "attacker@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create user2: %v", err)
+	}
+
+	fr := file.NewFileRepository(db)
+
+	savedFile, err := fr.Save(context.Background(), user1.ID, "private_file.txt", "text/plain", "test-bucket", "files/private.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save file for user1: %v", err)
 	}
 
-	_, err = fr.Rename(context.Background(), user2, savedFile, "hacked.txt")
+	_, err = fr.Rename(context.Background(), user2.Email, savedFile.OriginalName, "hacked.txt")
 	if err == nil {
 		t.Error("Expected error when user2 tries to rename user1's file, got nil")
 	}
 
-	foundFile, err := fr.Get(context.Background(), user1, &entity.File{OriginalName: "private_file.txt"})
+	foundFile, err := fr.GetByOriginalNameAndUserEmail(context.Background(), user1.Email, "private_file.txt")
 	if err != nil {
 		t.Fatalf("File of user1 disappeared or was renamed unexpectedly: %v", err)
 	}
@@ -466,42 +424,34 @@ func TestRenameFile_WrongUser(t *testing.T) {
 }
 
 func TestRenameFile_NameConflict(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	user := createTestUser(t, db, "rename_conflict@test.com")
+	ur := user.NewUserRepository(db)
+	passwordHash := hashPassword(t, "password")
+	testUser, err := ur.Create(context.Background(), "Test", "User", "rename_conflict@test.com", passwordHash)
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
 	fr := file.NewFileRepository(db)
 
-	file1 := &entity.File{
-		OriginalName: "file1.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  100,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/file1.txt",
-	}
-	file2 := &entity.File{
-		OriginalName: "file2.txt",
-		MimeType:     "text/plain",
-		SizeInBytes:  200,
-		S3Bucket:     "test-bucket",
-		S3Key:        "files/file2.txt",
-	}
-
-	saved1, err := fr.Save(context.Background(), user, file1)
+	saved1, err := fr.Save(context.Background(), testUser.ID, "file1.txt", "text/plain", "test-bucket", "files/file1.txt", 100, false)
 	if err != nil {
 		t.Fatalf("Failed to save file1: %v", err)
 	}
-	_, err = fr.Save(context.Background(), user, file2)
+
+	_, err = fr.Save(context.Background(), testUser.ID, "file2.txt", "text/plain", "test-bucket", "files/file2.txt", 200, false)
 	if err != nil {
 		t.Fatalf("Failed to save file2: %v", err)
 	}
 
-	_, err = fr.Rename(context.Background(), user, saved1, "file2.txt")
+	_, err = fr.Rename(context.Background(), testUser.Email, "file1.txt", "file2.txt")
 	if err == nil {
 		t.Error("Expected error due to duplicate file name after rename, got nil")
 	}
 
-	found1, err := fr.Get(context.Background(), user, &entity.File{OriginalName: "file1.txt"})
+	found1, err := fr.GetByOriginalNameAndUserEmail(context.Background(), testUser.Email, "file1.txt")
 	if err != nil {
 		t.Fatalf("file1 disappeared after failed rename: %v", err)
 	}

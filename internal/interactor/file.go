@@ -18,13 +18,13 @@ func (i *interactor) NewFileService() service.FileService {
 }
 
 func (i *interactor) NewS3Storage() file.S3Client {
-	return file.NewS3Client(i.s3client, i.s3bucket)
+	return file.NewS3Client(i.s3client, i.s3bucket, i.log)
 }
 
 func (i *interactor) NewFileUseCase() usecase.Usecase {
-	return usecase.NewFileUsecase(i.NewFileRepository(), i.NewFileService(), i.NewS3Storage())
+	return usecase.NewFileUsecase(i.NewFileRepository(), i.NewFileService(), i.NewS3Storage(), i.log)
 }
 
 func (i *interactor) NewFileHandler() handler.FileHandler {
-	return handler.NewFileHandler(i.NewFileUseCase(), i.NewJWTTokenService())
+	return handler.NewFileHandler(i.NewFileUseCase(), i.NewJWTTokenService(), i.log)
 }

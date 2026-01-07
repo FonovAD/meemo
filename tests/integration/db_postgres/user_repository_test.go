@@ -2,49 +2,30 @@ package db_postgres
 
 import (
 	"context"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-	"github.com/jmoiron/sqlx"
-	"gopkg.in/yaml.v3"
-	"log"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/user/service"
-	storage "meemo/internal/infrastructure/storage/pg"
 	"meemo/internal/infrastructure/storage/pg/user"
-	"os"
 	"testing"
 )
 
-func initDB(t *testing.T) (*sqlx.DB, func()) {
-	configFile, err := os.ReadFile("db_config.yaml")
-	if err != nil {
-		log.Fatalf("Error reading config file: %v", err)
+func hashPassword(t *testing.T, password string) string {
+	us := service.NewUserService()
+	u := &entity.User{}
+	if err := us.HashPassword(u, password); err != nil {
+		t.Fatalf("Failed to hash password: %v", err)
 	}
-
-	var cfg storage.PGConfig
-	err = yaml.Unmarshal(configFile, &cfg)
-	if err != nil {
-		log.Fatalf("Error unmarshaling YAML: %v", err)
-	}
-
-	return SetupTestDB(t, cfg)
+	return u.PasswordSalt
 }
 
 func TestCreateUser(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Тест",
-		LastName:  "Тестов",
-		Email:     "test@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "test")
+	passwordHash := hashPassword(t, "test")
 
 	ur := user.NewUserRepository(db)
 
-	createdUser, err := ur.Create(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), "Тест", "Тестов", "test@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -52,29 +33,22 @@ func TestCreateUser(t *testing.T) {
 	if createdUser.ID == 0 {
 		t.Error("Expected user ID to be set")
 	}
-	if createdUser.FirstName != newUser.FirstName {
-		t.Errorf("Expected first name %s, got %s", newUser.FirstName, createdUser.FirstName)
+	if createdUser.FirstName != "Тест" {
+		t.Errorf("Expected first name %s, got %s", "Тест", createdUser.FirstName)
 	}
-	if createdUser.Email != newUser.Email {
-		t.Errorf("Expected email %s, got %s", newUser.Email, createdUser.Email)
+	if createdUser.Email != "test@test.com" {
+		t.Errorf("Expected email %s, got %s", "test@test.com", createdUser.Email)
 	}
 }
 
 func TestGetUserByEmail(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Иван",
-		LastName:  "Иванов",
-		Email:     "ivan@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "password123")
+	passwordHash := hashPassword(t, "password123")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.Create(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), "Иван", "Иванов", "ivan@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
@@ -93,7 +67,7 @@ func TestGetUserByEmail(t *testing.T) {
 }
 
 func TestGetUserByEmail_NotFound(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
 	ur := user.NewUserRepository(db)
@@ -105,29 +79,19 @@ func TestGetUserByEmail_NotFound(t *testing.T) {
 }
 
 func TestUpdateUser(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Петр",
-		LastName:  "Петров",
-		Email:     "petr@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "oldpassword")
+	passwordHash := hashPassword(t, "oldpassword")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.Create(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), "Петр", "Петров", "petr@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	createdUser.FirstName = "Петр Updated"
-	createdUser.LastName = "Петров Updated"
-	us.HashPassword(createdUser, "newpassword")
-
-	updatedUser, err := ur.Update(context.Background(), createdUser)
+	newPasswordHash := hashPassword(t, "newpassword")
+	updatedUser, err := ur.Update(context.Background(), createdUser.ID, "Петр Updated", "Петров Updated", createdUser.Email, newPasswordHash)
 	if err != nil {
 		t.Fatalf("Failed to update user: %v", err)
 	}
@@ -138,60 +102,42 @@ func TestUpdateUser(t *testing.T) {
 }
 
 func TestUpdateUserEmail_DuplicateEmail(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
 	ur := user.NewUserRepository(db)
 
-	user1 := &entity.User{
-		FirstName: "Первый",
-		LastName:  "Пользователь",
-		Email:     "user1@test.com",
-	}
-	us := service.NewUserService()
-	us.HashPassword(user1, "pass1")
-	_, err := ur.Create(context.Background(), user1)
+	passwordHash1 := hashPassword(t, "pass1")
+	_, err := ur.Create(context.Background(), "Первый", "Пользователь", "user1@test.com", passwordHash1)
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
-	user2 := &entity.User{
-		FirstName: "Второй",
-		LastName:  "Пользователь",
-		Email:     "user2@test.com",
-	}
-	us.HashPassword(user2, "pass2")
-	createdUser2, err := ur.Create(context.Background(), user2)
+	passwordHash2 := hashPassword(t, "pass2")
+	_, err = ur.Create(context.Background(), "Второй", "Пользователь", "user2@test.com", passwordHash2)
 	if err != nil {
 		t.Fatalf("Failed to create second user: %v", err)
 	}
 
-	_, err = ur.UpdateEmail(context.Background(), createdUser2, "user1@test.com")
+	_, err = ur.UpdateEmail(context.Background(), "user2@test.com", "user1@test.com")
 	if err == nil {
 		t.Error("Expected error for duplicate email, got nil")
 	}
 }
 
 func TestUpdateUserEmail_SameEmail(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Мария",
-		LastName:  "Иванова",
-		Email:     "maria@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "password")
+	passwordHash := hashPassword(t, "password")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.Create(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), "Мария", "Иванова", "maria@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	updatedUser, err := ur.UpdateEmail(context.Background(), createdUser, "maria@test.com")
+	updatedUser, err := ur.UpdateEmail(context.Background(), createdUser.Email, "maria@test.com")
 	if err != nil {
 		t.Fatalf("Unexpected error when updating to same email: %v", err)
 	}
@@ -210,50 +156,36 @@ func TestUpdateUserEmail_SameEmail(t *testing.T) {
 }
 
 func TestUpdateUserEmail_EmptyEmail(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Дмитрий",
-		LastName:  "Сидоров",
-		Email:     "dmitry@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "password")
+	passwordHash := hashPassword(t, "password")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.Create(context.Background(), newUser)
+	_, err := ur.Create(context.Background(), "Дмитрий", "Сидоров", "dmitry@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	_, err = ur.UpdateEmail(context.Background(), createdUser, "")
+	_, err = ur.UpdateEmail(context.Background(), "dmitry@test.com", "")
 	if err == nil {
 		t.Error("Expected error for empty email, got nil")
 	}
 }
 
 func TestDeleteUser(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Удаляемый",
-		LastName:  "Пользователь",
-		Email:     "delete@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "password")
+	passwordHash := hashPassword(t, "password")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.Create(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), "Удаляемый", "Пользователь", "delete@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	deletedUser, err := ur.Delete(context.Background(), createdUser)
+	deletedUser, err := ur.Delete(context.Background(), createdUser.Email)
 	if err != nil {
 		t.Fatalf("Failed to delete user: %v", err)
 	}
@@ -269,60 +201,39 @@ func TestDeleteUser(t *testing.T) {
 }
 
 func TestCreateUser_DuplicateEmail(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Тест",
-		LastName:  "Тестов",
-		Email:     "duplicate@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "test")
+	passwordHash := hashPassword(t, "test")
 
 	ur := user.NewUserRepository(db)
 
-	_, err := ur.Create(context.Background(), newUser)
+	_, err := ur.Create(context.Background(), "Тест", "Тестов", "duplicate@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
-	duplicateUser := &entity.User{
-		FirstName: "Другой",
-		LastName:  "Пользователь",
-		Email:     "duplicate@test.com",
-	}
-	us.HashPassword(duplicateUser, "test2")
-
-	_, err = ur.Create(context.Background(), duplicateUser)
+	passwordHash2 := hashPassword(t, "test2")
+	_, err = ur.Create(context.Background(), "Другой", "Пользователь", "duplicate@test.com", passwordHash2)
 	if err == nil {
 		t.Error("Expected error for duplicate email, got nil")
 	}
 }
 
 func TestCheckPassword_Success(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Проверка",
-		LastName:  "Пароля",
-		Email:     "checkpass@test.com",
-	}
-
-	us := service.NewUserService()
-	password := "correctpassword123"
-	us.HashPassword(newUser, password)
+	passwordHash := hashPassword(t, "correctpassword123")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.Create(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), "Проверка", "Пароля", "checkpass@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
 	// Проверяем пароль с правильным хешем
-	check, err := ur.CheckPassword(context.Background(), createdUser, createdUser.PasswordSalt)
+	check, err := ur.CheckPassword(context.Background(), createdUser.Email, createdUser.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password: %v", err)
 	}
@@ -333,31 +244,19 @@ func TestCheckPassword_Success(t *testing.T) {
 }
 
 func TestCheckPassword_WrongPassword(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
-	newUser := &entity.User{
-		FirstName: "Неправильный",
-		LastName:  "Пароль",
-		Email:     "wrongpass@test.com",
-	}
-
-	us := service.NewUserService()
-	us.HashPassword(newUser, "correctpassword")
+	passwordHash := hashPassword(t, "correctpassword")
 
 	ur := user.NewUserRepository(db)
-	createdUser, err := ur.Create(context.Background(), newUser)
+	createdUser, err := ur.Create(context.Background(), "Неправильный", "Пароль", "wrongpass@test.com", passwordHash)
 	if err != nil {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Создаем пользователя с другим паролем для проверки
-	wrongPasswordUser := &entity.User{
-		Email:        createdUser.Email,
-		PasswordSalt: "wrong_hash_that_does_not_match",
-	}
-
-	check, err := ur.CheckPassword(context.Background(), wrongPasswordUser, wrongPasswordUser.PasswordSalt)
+	// Проверяем с неправильным хешем
+	check, err := ur.CheckPassword(context.Background(), createdUser.Email, "wrong_hash_that_does_not_match")
 	if err != nil {
 		t.Fatalf("Failed to check password: %v", err)
 	}
@@ -368,17 +267,12 @@ func TestCheckPassword_WrongPassword(t *testing.T) {
 }
 
 func TestCheckPassword_NonExistentUser(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
 	ur := user.NewUserRepository(db)
 
-	nonExistentUser := &entity.User{
-		Email:        "nonexistent@test.com",
-		PasswordSalt: "some_hash",
-	}
-
-	check, err := ur.CheckPassword(context.Background(), nonExistentUser, nonExistentUser.PasswordSalt)
+	check, err := ur.CheckPassword(context.Background(), "nonexistent@test.com", "some_hash")
 	if err != nil {
 		t.Fatalf("Unexpected error when checking password for non-existent user: %v", err)
 	}
@@ -389,17 +283,12 @@ func TestCheckPassword_NonExistentUser(t *testing.T) {
 }
 
 func TestCheckPassword_EmptyEmail(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
 	ur := user.NewUserRepository(db)
 
-	emptyEmailUser := &entity.User{
-		Email:        "",
-		PasswordSalt: "some_hash",
-	}
-
-	check, err := ur.CheckPassword(context.Background(), emptyEmailUser, emptyEmailUser.PasswordSalt)
+	check, err := ur.CheckPassword(context.Background(), "", "some_hash")
 	if err != nil {
 		t.Fatalf("Unexpected error when checking password with empty email: %v", err)
 	}
@@ -410,32 +299,21 @@ func TestCheckPassword_EmptyEmail(t *testing.T) {
 }
 
 func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
-	db, teardown := initDB(t)
+	db, teardown := initTestDB(t)
 	defer teardown()
 
 	ur := user.NewUserRepository(db)
-	us := service.NewUserService()
 
 	// Создаем первого пользователя
-	user1 := &entity.User{
-		FirstName: "Первый",
-		LastName:  "Пользователь",
-		Email:     "user1@test.com",
-	}
-	us.HashPassword(user1, "samepassword")
-	createdUser1, err := ur.Create(context.Background(), user1)
+	passwordHash1 := hashPassword(t, "samepassword")
+	createdUser1, err := ur.Create(context.Background(), "Первый", "Пользователь", "user1@test.com", passwordHash1)
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
 	// Создаем второго пользователя с тем же паролем
-	user2 := &entity.User{
-		FirstName: "Второй",
-		LastName:  "Пользователь",
-		Email:     "user2@test.com",
-	}
-	us.HashPassword(user2, "samepassword")
-	createdUser2, err := ur.Create(context.Background(), user2)
+	passwordHash2 := hashPassword(t, "samepassword")
+	createdUser2, err := ur.Create(context.Background(), "Второй", "Пользователь", "user2@test.com", passwordHash2)
 	if err != nil {
 		t.Fatalf("Failed to create second user: %v", err)
 	}
@@ -446,7 +324,7 @@ func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
 	}
 
 	// Проверяем пароль первого пользователя
-	check1, err := ur.CheckPassword(context.Background(), createdUser1, createdUser1.PasswordSalt)
+	check1, err := ur.CheckPassword(context.Background(), createdUser1.Email, createdUser1.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password for user1: %v", err)
 	}
@@ -455,7 +333,7 @@ func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
 	}
 
 	// Проверяем пароль второго пользователя
-	check2, err := ur.CheckPassword(context.Background(), createdUser2, createdUser2.PasswordSalt)
+	check2, err := ur.CheckPassword(context.Background(), createdUser2.Email, createdUser2.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password for user2: %v", err)
 	}
@@ -464,7 +342,7 @@ func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
 	}
 
 	// Проверяем, что нельзя использовать хеш одного пользователя для другого
-	wrongCheck, err := ur.CheckPassword(context.Background(), createdUser1, createdUser2.PasswordSalt)
+	wrongCheck, err := ur.CheckPassword(context.Background(), createdUser1.Email, createdUser2.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password: %v", err)
 	}

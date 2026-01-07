@@ -6,8 +6,9 @@ import (
 )
 
 type Config struct {
-	Host string `config:"APP_HOST" yaml:"host"`
-	Port string `config:"APP_PORT" yaml:"port"`
+	Host     string `config:"APP_HOST" yaml:"host"`
+	Port     string `config:"APP_PORT" yaml:"port"`
+	LogLevel string `config:"LOG_LEVEL" yaml:"log_level"`
 
 	Postgres     pg.PGConfig `config:"postgres"  yaml:"postgres"`
 	S3           s3.Config   `config:"s3"  yaml:"s3"`

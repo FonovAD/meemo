@@ -17,7 +17,6 @@ func NewFileService() FileService {
 
 func (s *fileService) CreateFileMetadata(file *entity.File) {
 	file.Status = entity.Pending
-	file.SizeInBytes = 0
 	file.CreatedAt = time.Now()
 	file.UpdatedAt = time.Now()
 }

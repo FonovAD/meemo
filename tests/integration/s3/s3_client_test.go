@@ -2,165 +2,28 @@ package s3
 
 import (
 	"bytes"
-	"fmt"
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
-	"gopkg.in/yaml.v3"
-	"log"
-	"meemo/internal/domain/entity"
-	"meemo/internal/infrastructure/storage/s3"
-	"meemo/internal/infrastructure/storage/s3/file"
-	"os"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"meemo/internal/infrastructure/logger"
+	"meemo/internal/infrastructure/storage/s3/file"
 )
 
-type TestS3Client struct {
-	testBucket string
-	*file.S3ClientImpl
-}
-
-func setupTestS3Client(t *testing.T) *TestS3Client {
-	configFile, err := os.ReadFile("s3_config.yaml")
-	if err != nil {
-		log.Fatalf("Error reading config file: %v", err)
-	}
-
-	var cfg s3.Config
-	err = yaml.Unmarshal(configFile, &cfg)
-	if err != nil {
-		log.Fatalf("Error parsing config file: %v", err)
-	}
-
-	minioClient, err := minio.New(cfg.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(cfg.AccessKeyID, cfg.SecretAccessKey, ""),
-		Secure: cfg.UseSSL,
-	})
-	if err != nil {
-		t.Fatalf("Failed to create MinIO client: %v", err)
-	}
-
-	testBucket := fmt.Sprintf("test-bucket-%d", time.Now().UnixNano())
-
-	err = minioClient.MakeBucket(t.Context(), testBucket, minio.MakeBucketOptions{})
-	if err != nil {
-		exists, errBucketExists := minioClient.BucketExists(t.Context(), testBucket)
-		if !(exists && errBucketExists == nil) {
-			t.Fatalf("Failed to create test bucket: %v", err)
-		}
-	}
-
-	return &TestS3Client{
-		S3ClientImpl: &file.S3ClientImpl{
-			BucketName: testBucket,
-			Client:     minioClient,
-		},
-		testBucket: testBucket,
-	}
-}
-
-func (ts3 *TestS3Client) cleanup(t *testing.T) {
-
-	t.Logf("Cleaning up bucket: %s", ts3.testBucket)
-
-	objectsCh := ts3.Client.ListObjects(t.Context(), ts3.testBucket, minio.ListObjectsOptions{
-		Recursive: true,
-	})
-
-	removeErrors := 0
-	for object := range objectsCh {
-		if object.Err != nil {
-			t.Logf("Error listing object: %v", object.Err)
-			continue
-		}
-
-		err := ts3.Client.RemoveObject(t.Context(), ts3.testBucket, object.Key, minio.RemoveObjectOptions{})
-		if err != nil {
-			t.Logf("Error removing object %s: %v", object.Key, err)
-			removeErrors++
-		} else {
-			t.Logf("Removed object: %s", object.Key)
-		}
-	}
-
-	if removeErrors > 0 {
-		t.Logf("Failed to remove %d objects", removeErrors)
-	}
-	time.Sleep(100 * time.Millisecond)
-
-	err := ts3.Client.RemoveBucket(t.Context(), ts3.testBucket)
-	if err != nil {
-		t.Logf("Failed to remove bucket %s: %v. Attempting force cleanup...", ts3.testBucket, err)
-
-		ts3.forceCleanupBucket(t)
-
-		err = ts3.Client.RemoveBucket(t.Context(), ts3.testBucket)
-		if err != nil {
-			t.Logf("Final bucket removal failed for %s: %v", ts3.testBucket, err)
-		}
-	} else {
-		t.Logf("Successfully removed bucket: %s", ts3.testBucket)
-	}
-}
-
-func (ts3 *TestS3Client) forceCleanupBucket(t *testing.T) {
-	objectsCh := make(chan minio.ObjectInfo)
-
-	go func() {
-		defer close(objectsCh)
-
-		listCh := ts3.Client.ListObjects(t.Context(), ts3.testBucket, minio.ListObjectsOptions{
-			Recursive: true,
-		})
-
-		for object := range listCh {
-			if object.Err != nil {
-				t.Logf("Error listing object: %v", object.Err)
-				continue
-			}
-			objectsCh <- object
-		}
-	}()
-
-	errorsCh := ts3.Client.RemoveObjects(t.Context(), ts3.testBucket, objectsCh, minio.RemoveObjectsOptions{})
-	errorCount := 0
-
-	for removeErr := range errorsCh {
-		t.Logf("Force remove error: %v", removeErr.Err)
-		errorCount++
-	}
-
-	if errorCount > 0 {
-		t.Logf("Encountered %d errors during force cleanup", errorCount)
-	}
-}
-
-func createTestUser(email string) *entity.User {
-	return &entity.User{
-		Email: email,
-	}
-}
-
-func createTestFile(originalName string, size int64) *entity.File {
-	return &entity.File{
-		OriginalName: originalName,
-		SizeInBytes:  size,
-	}
-}
-
 func TestS3Client_SaveAndGetFile(t *testing.T) {
-	ts3 := setupTestS3Client(t)
-	defer ts3.cleanup(t)
+	s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+	defer cleanup()
 
-	user := createTestUser("test@example.com")
-	file := createTestFile("test-file.txt", 33)
+	log, _ := logger.NewLogger("error")
+	client := file.NewS3Client(s3Client, testBucket, log)
 
 	testContent := "Hello, this is test file content!"
-	file.R = strings.NewReader(testContent)
+	fileID := int64(12345)
 
 	t.Run("SaveFile_Success", func(t *testing.T) {
-		err := ts3.SaveFile(t.Context(), user, file)
+		reader := strings.NewReader(testContent)
+		err := client.SaveFile(t.Context(), fileID, reader, int64(len(testContent)))
 		if err != nil {
 			t.Fatalf("Failed to save file: %v", err)
 		}
@@ -168,8 +31,7 @@ func TestS3Client_SaveAndGetFile(t *testing.T) {
 
 	t.Run("GetFile_Success", func(t *testing.T) {
 		var buf bytes.Buffer
-		file.W = &buf
-		err := ts3.GetFileByOriginalName(t.Context(), user, file)
+		err := client.GetFileByID(t.Context(), fileID, &buf)
 		if err != nil {
 			t.Fatalf("Failed to get file: %v", err)
 		}
@@ -180,82 +42,140 @@ func TestS3Client_SaveAndGetFile(t *testing.T) {
 	})
 }
 
+func TestS3Client_GetFileByOriginalName(t *testing.T) {
+	s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+	defer cleanup()
+
+	log, _ := logger.NewLogger("error")
+	client := file.NewS3Client(s3Client, testBucket, log)
+
+	userEmail := "test@example.com"
+	originalName := "testfile.txt"
+	testContent := "File content by name"
+
+	key := userEmail + originalName
+	_, err := s3Client.PutObject(t.Context(), &s3.PutObjectInput{
+		Bucket: aws.String(testBucket),
+		Key:    aws.String(key),
+		Body:   strings.NewReader(testContent),
+	})
+	if err != nil {
+		t.Fatalf("Failed to save file: %v", err)
+	}
+
+	t.Run("GetFileByOriginalName_Success", func(t *testing.T) {
+		var buf bytes.Buffer
+		err := client.GetFileByOriginalName(t.Context(), userEmail, originalName, &buf)
+		if err != nil {
+			t.Fatalf("Failed to get file by original name: %v", err)
+		}
+
+		if buf.String() != testContent {
+			t.Errorf("File content mismatch. Expected: %s, Got: %s", testContent, buf.String())
+		}
+	})
+}
+
 func TestS3Client_DeleteFile(t *testing.T) {
-	ts3 := setupTestS3Client(t)
-	defer ts3.cleanup(t)
+	s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+	defer cleanup()
 
-	user := createTestUser("test@example.com")
-	file := createTestFile("to-delete.txt", 17)
+	log, _ := logger.NewLogger("error")
+	client := file.NewS3Client(s3Client, testBucket, log)
 
-	file.R = strings.NewReader("content to delete")
-	err := ts3.SaveFile(t.Context(), user, file)
+	fileID := int64(99999)
+	testContent := "content to delete"
+
+	reader := strings.NewReader(testContent)
+	err := client.SaveFile(t.Context(), fileID, reader, int64(len(testContent)))
 	if err != nil {
 		t.Fatalf("Setup failed: %v", err)
 	}
 
 	t.Run("DeleteFile_Success", func(t *testing.T) {
-		err := ts3.DeleteFile(t.Context(), user, file)
+		err := client.DeleteFile(t.Context(), fileID)
 		if err != nil {
 			t.Fatalf("Failed to delete file: %v", err)
+		}
+
+		var buf bytes.Buffer
+		err = client.GetFileByID(t.Context(), fileID, &buf)
+		if err == nil {
+			t.Error("Expected error when getting deleted file, got nil")
 		}
 	})
 }
 
 func TestS3Client_RenameFile(t *testing.T) {
-	ts3 := setupTestS3Client(t)
-	defer ts3.cleanup(t)
+	s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+	defer cleanup()
 
-	user := createTestUser("test@example.com")
-	originalFile := createTestFile("old-name.txt", 16)
+	log, _ := logger.NewLogger("error")
+	client := file.NewS3Client(s3Client, testBucket, log)
+
+	userEmail := "rename@example.com"
+	originalName := "old-name.txt"
 	newName := "new-name.txt"
-
 	originalContent := "original content"
-	originalFile.R = strings.NewReader(originalContent)
-	err := ts3.SaveFile(t.Context(), user, originalFile)
+
+	key := userEmail + originalName
+	_, err := s3Client.PutObject(t.Context(), &s3.PutObjectInput{
+		Bucket: aws.String(testBucket),
+		Key:    aws.String(key),
+		Body:   strings.NewReader(originalContent),
+	})
 	if err != nil {
 		t.Fatalf("Setup failed: %v", err)
 	}
 
 	t.Run("RenameFile_Success", func(t *testing.T) {
-		err := ts3.RenameFile(t.Context(), user, originalFile, newName)
+		err := client.RenameFile(t.Context(), userEmail, originalName, newName)
 		if err != nil {
 			t.Fatalf("Failed to rename file: %v", err)
 		}
 
 		var buf bytes.Buffer
-		newfile := createTestFile(newName, 100)
-		newfile.W = &buf
-
-		err = ts3.GetFileByOriginalName(t.Context(), user, newfile)
+		err = client.GetFileByOriginalName(t.Context(), userEmail, newName, &buf)
 		if err != nil {
 			t.Fatalf("Failed to get renamed file: %v", err)
+		}
+
+		if buf.String() != originalContent {
+			t.Errorf("File content mismatch. Expected: %s, Got: %s", originalContent, buf.String())
+		}
+
+		var buf2 bytes.Buffer
+		err = client.GetFileByOriginalName(t.Context(), userEmail, originalName, &buf2)
+		if err == nil {
+			t.Error("Expected error when getting file by old name, got nil")
 		}
 	})
 }
 
-func TestS3Client_Cleanup_Effectiveness(t *testing.T) {
-	ts3 := setupTestS3Client(t)
-	testBucket := ts3.testBucket // сохраняем имя bucket'а
+func TestS3Client_MultipleFiles(t *testing.T) {
+	s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+	defer cleanup()
 
-	user := createTestUser("cleanup-test@example.com")
+	log, _ := logger.NewLogger("error")
+	client := file.NewS3Client(s3Client, testBucket, log)
 
-	files := []string{"file1.txt", "file2.txt", "subdir/file3.txt"}
-	for _, filename := range files {
-		file := createTestFile(filename, 12)
-		file.R = strings.NewReader("test content")
-		err := ts3.SaveFile(t.Context(), user, file)
+	fileIDs := []int64{1001, 1002, 1003}
+	testContent := "test content"
+
+	for _, fileID := range fileIDs {
+		reader := strings.NewReader(testContent)
+		err := client.SaveFile(t.Context(), fileID, reader, int64(len(testContent)))
 		if err != nil {
-			t.Fatalf("Failed to create test file %s: %v", filename, err)
+			t.Fatalf("Failed to create test file %d: %v", fileID, err)
 		}
 	}
 
-	ts3.cleanup(t)
-
-	exists, err := ts3.Client.BucketExists(t.Context(), testBucket)
-	if err == nil && exists {
-		t.Error("Bucket still exists after cleanup - cleanup failed!")
-	} else {
-		t.Logf("Cleanup successful - bucket %s removed", testBucket)
+	for _, fileID := range fileIDs {
+		var buf bytes.Buffer
+		err := client.GetFileByID(t.Context(), fileID, &buf)
+		if err != nil {
+			t.Errorf("Failed to get file %d: %v", fileID, err)
+		}
 	}
 }
 
@@ -263,14 +183,17 @@ func TestS3Client_Parallel(t *testing.T) {
 	t.Run("ParallelOperations", func(t *testing.T) {
 		t.Parallel()
 
-		ts3 := setupTestS3Client(t)
-		defer ts3.cleanup(t)
+		s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+		defer cleanup()
 
-		user := createTestUser("parallel@example.com")
-		file := createTestFile("parallel-test.txt", 16)
-		file.R = strings.NewReader("parallel content")
+		log, _ := logger.NewLogger("error")
+		client := file.NewS3Client(s3Client, testBucket, log)
 
-		err := ts3.SaveFile(t.Context(), user, file)
+		testContent := "parallel content"
+		fileID := int64(2001)
+		reader := strings.NewReader(testContent)
+
+		err := client.SaveFile(t.Context(), fileID, reader, int64(len(testContent)))
 		if err != nil {
 			t.Errorf("Parallel save failed: %v", err)
 		}
@@ -279,16 +202,71 @@ func TestS3Client_Parallel(t *testing.T) {
 	t.Run("AnotherParallel", func(t *testing.T) {
 		t.Parallel()
 
-		ts3 := setupTestS3Client(t)
-		defer ts3.cleanup(t)
+		s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+		defer cleanup()
 
-		user := createTestUser("parallel2@example.com")
-		file := createTestFile("another-test.txt", 14)
-		file.R = strings.NewReader("another content")
+		log, _ := logger.NewLogger("error")
+		client := file.NewS3Client(s3Client, testBucket, log)
 
-		err := ts3.SaveFile(t.Context(), user, file)
+		testContent := "another content"
+		fileID := int64(2002)
+		reader := strings.NewReader(testContent)
+
+		err := client.SaveFile(t.Context(), fileID, reader, int64(len(testContent)))
 		if err != nil {
 			t.Errorf("Another parallel save failed: %v", err)
 		}
 	})
+}
+
+func TestS3Client_DifferentUsers(t *testing.T) {
+	s3Client, testBucket, cleanup := SetupS3ClientForTest(t)
+	defer cleanup()
+
+	log, _ := logger.NewLogger("error")
+	client := file.NewS3Client(s3Client, testBucket, log)
+
+	user1Email := "user1@example.com"
+	user2Email := "user2@example.com"
+	fileName := "shared-name.txt"
+	user1Content := "user1 content"
+	user2Content := "user2 content"
+
+	key1 := user1Email + fileName
+	_, err := s3Client.PutObject(t.Context(), &s3.PutObjectInput{
+		Bucket: aws.String(testBucket),
+		Key:    aws.String(key1),
+		Body:   strings.NewReader(user1Content),
+	})
+	if err != nil {
+		t.Fatalf("Failed to save file for user1: %v", err)
+	}
+
+	key2 := user2Email + fileName
+	_, err = s3Client.PutObject(t.Context(), &s3.PutObjectInput{
+		Bucket: aws.String(testBucket),
+		Key:    aws.String(key2),
+		Body:   strings.NewReader(user2Content),
+	})
+	if err != nil {
+		t.Fatalf("Failed to save file for user2: %v", err)
+	}
+
+	var buf1 bytes.Buffer
+	err = client.GetFileByOriginalName(t.Context(), user1Email, fileName, &buf1)
+	if err != nil {
+		t.Fatalf("Failed to get file for user1: %v", err)
+	}
+	if buf1.String() != user1Content {
+		t.Errorf("User1 got wrong content: %s", buf1.String())
+	}
+
+	var buf2 bytes.Buffer
+	err = client.GetFileByOriginalName(t.Context(), user2Email, fileName, &buf2)
+	if err != nil {
+		t.Fatalf("Failed to get file for user2: %v", err)
+	}
+	if buf2.String() != user2Content {
+		t.Errorf("User2 got wrong content: %s", buf2.String())
+	}
 }

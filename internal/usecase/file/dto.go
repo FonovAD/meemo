@@ -11,10 +11,7 @@ type SaveFileMetadataDtoIn struct {
 	OriginalName string `json:"original_name"`
 	MimeType     string `json:"mime_type"`
 	SizeInBytes  int64  `json:"size_in_bytes"`
-	//S3Bucket     string `json:"s3_bucket"`
-	//S3Key        string `json:"s3_key"`
-	//Status       int    `json:"status"`
-	IsPublic bool `json:"is_public"`
+	IsPublic     bool   `json:"is_public"`
 }
 
 type SaveFileMetadataDtoOut struct {
@@ -152,4 +149,15 @@ type SetStatusDtoOut struct {
 	OriginalName string    `json:"original_name"`
 	Status       int       `json:"status"`
 	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type GetStorageInfoDtoIn struct {
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
+}
+
+type GetStorageInfoDtoOut struct {
+	UsedBytes      int64 `json:"used_bytes"`
+	AvailableBytes int64 `json:"available_bytes"`
+	TotalBytes     int64 `json:"total_bytes"`
 }

@@ -1,8 +1,0 @@
-database: "postgres_"
-user: "postgres"
-password: "postgres"
-host: "localhost"
-port: "5432"
-retries: 3
-pool_size: 50
-ssl_mode: "disable"

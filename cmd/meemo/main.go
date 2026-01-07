@@ -4,19 +4,21 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
-	"github.com/labstack/echo/v4"
-	"gopkg.in/yaml.v3"
-	"meemo/config"
-	_ "meemo/docs" // swagger docs
-	"meemo/internal/infrastructure/storage/pg"
-	"meemo/internal/infrastructure/storage/s3"
-	"meemo/internal/interactor"
-	"meemo/internal/presenter/http/router"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"gopkg.in/yaml.v3"
+	"meemo/config"
+	_ "meemo/docs"
+	"meemo/internal/infrastructure/logger"
+	"meemo/internal/infrastructure/storage/pg"
+	"meemo/internal/infrastructure/storage/s3"
+	"meemo/internal/interactor"
+	"meemo/internal/presenter/http/router"
 )
 
 // @title Meemo File Storage API
@@ -55,40 +57,103 @@ func main() {
 	flag.Parse()
 	cfg := setupConfig(*configPathFlag)
 
-	S3, err := s3.NewS3(&cfg.S3)
+	log, err := logger.NewLogger(cfg.LogLevel)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("1")
+	defer log.Sync()
+
+	ctx := context.Background()
+
+	S3, err := s3.NewS3(ctx, &cfg.S3)
+	if err != nil {
+		log.Fatal("failed to connect to S3")
+	}
 	PG, err := pg.NewPGConnection(&cfg.Postgres)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to connect to PostgreSQL")
 	}
-	fmt.Println("2")
-	i := interactor.NewInteractor(PG, S3, cfg.S3BucketName)
+
+	i := interactor.NewInteractor(PG, S3, cfg.S3BucketName, log)
 	h := i.NewAppHandler()
 
 	e := setupEcho()
-	fmt.Println("3")
 	router.NewRouter(e, h)
+
+	log.Info("starting server on port " + cfg.Port)
+
 	go func() {
 		if err := e.Start(":" + cfg.Port); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			e.Logger.Fatal("shutting down the server")
+			log.Fatal("shutting down the server")
 		}
 	}()
-	fmt.Println("4")
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+	log.Info("shutting down server...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
+	if err := e.Shutdown(shutdownCtx); err != nil {
+		log.Fatal("server shutdown failed")
 	}
+
+	log.Info("server stopped")
 }
 
 func setupEcho() *echo.Echo {
 	e := echo.New()
+
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format: "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
+	}))
+
+	e.Use(middleware.Recover())
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-User-ID", "X-User-Email", echo.HeaderXCSRFToken},
+		AllowCredentials: true,
+		ExposeHeaders:    []string{echo.HeaderXCSRFToken},
+	}))
+
+	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
+		TokenLookup:    "header:" + echo.HeaderXCSRFToken,
+		CookieName:     "_csrf",
+		CookiePath:     "/",
+		CookieSecure:   false,
+		CookieHTTPOnly: false,
+		CookieSameSite: http.SameSiteStrictMode,
+		Skipper: func(c echo.Context) bool {
+			path := c.Path()
+			method := c.Request().Method
+
+			if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions {
+				return true
+			}
+
+			authHeader := c.Request().Header.Get(echo.HeaderAuthorization)
+			if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+				return true
+			}
+
+			if path == "/api/v1/users/register" ||
+				path == "/api/v1/users/login" ||
+				path == "/api/v1/users/refresh" ||
+				path == "/api/v1/users/logout" {
+				return true
+			}
+
+			if path == "/ping" || len(path) >= 8 && path[:8] == "/swagger" {
+				return true
+			}
+
+			return false
+		},
+	}))
+
 	return e
 }
 

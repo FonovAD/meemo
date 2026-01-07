@@ -46,7 +46,6 @@ func (h *userHandler) CreateUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 	}
 
-	// Валидация
 	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "all fields are required"})
 	}
@@ -64,7 +63,6 @@ func (h *userHandler) CreateUser(c echo.Context) error {
 
 	resp, err := h.userUsecase.CreateUser(c.Request().Context(), dto)
 	if err != nil {
-		// Проверка на дубликат email
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
 			return c.JSON(http.StatusConflict, map[string]string{"error": "user with this email already exists"})
 		}
@@ -128,16 +126,13 @@ func (h *userHandler) AuthUser(c echo.Context) error {
 // @Security BearerAuth
 // @Router /users/me [get]
 func (h *userHandler) GetUserInfo(c echo.Context) error {
-	// Извлекаем токен из заголовка Authorization
 	authHeader := c.Request().Header.Get("Authorization")
 	if authHeader == "" {
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "authorization header is required"})
 	}
 
-	// Убираем префикс "Bearer "
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	if token == authHeader {
-		// Если префикс не найден, пробуем использовать заголовок как есть
 		token = authHeader
 	}
 
@@ -226,7 +221,6 @@ func (h *userHandler) Logout(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "logged out successfully"})
 }
 
-// AuthMiddleware middleware для проверки JWT токена
 func (h *userHandler) AuthMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -240,7 +234,6 @@ func (h *userHandler) AuthMiddleware() echo.MiddlewareFunc {
 				token = authHeader
 			}
 
-			// Проверяем токен через usecase
 			dto := &userusecase.GetUserInfoDtoIn{
 				AccessToken: token,
 			}
@@ -250,7 +243,6 @@ func (h *userHandler) AuthMiddleware() echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, map[string]string{"error": "invalid or expired token"})
 			}
 
-			// Сохраняем информацию о пользователе в контексте
 			c.Set("user_email", userInfo.Email)
 			c.Set("user_info", userInfo)
 

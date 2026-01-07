@@ -1,8 +1,9 @@
 package interactor
 
 import (
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jmoiron/sqlx"
-	"github.com/minio/minio-go/v7"
+	"meemo/internal/infrastructure/logger"
 	handler "meemo/internal/presenter/http/handler"
 	filehandler "meemo/internal/presenter/http/handler/file"
 	userhandler "meemo/internal/presenter/http/handler/user"
@@ -13,12 +14,13 @@ type Interactor interface {
 }
 type interactor struct {
 	conn     *sqlx.DB
-	s3client *minio.Client
+	s3client *s3.Client
 	s3bucket string
+	log      logger.Logger
 }
 
-func NewInteractor(conn *sqlx.DB, s3client *minio.Client, bucket string) Interactor {
-	return &interactor{conn: conn, s3client: s3client, s3bucket: bucket}
+func NewInteractor(conn *sqlx.DB, s3client *s3.Client, bucket string, log logger.Logger) Interactor {
+	return &interactor{conn: conn, s3client: s3client, s3bucket: bucket, log: log}
 }
 
 type appHandler struct {

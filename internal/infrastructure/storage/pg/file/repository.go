@@ -130,3 +130,12 @@ func (fr *fileRepository) List(ctx context.Context, userEmail string) ([]*entity
 
 	return files, nil
 }
+
+func (fr *fileRepository) GetTotalUsedSpace(ctx context.Context, userEmail string) (int64, error) {
+	var totalBytes int64
+	err := fr.conn.QueryRowxContext(ctx, GetTotalUsedSpaceTemplate, userEmail).Scan(&totalBytes)
+	if err != nil {
+		return 0, err
+	}
+	return totalBytes, nil
+}

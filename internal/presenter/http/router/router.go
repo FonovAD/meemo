@@ -12,6 +12,7 @@ func NewRouter(e *echo.Echo, h handler.AppHandler) {
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	e.GET("/ping", Ping)
+	e.GET("/csrf-token", GetCSRFToken)
 
 	userRouter := e.Group("/api/v1/users")
 	userRouter.POST("/register", h.CreateUser)
@@ -24,6 +25,7 @@ func NewRouter(e *echo.Echo, h handler.AppHandler) {
 
 	fileRouter := e.Group("/api/v1/files", h.FileMiddleware())
 	fileRouter.GET("", h.GetUserFilesList)
+	fileRouter.GET("/storage", h.GetStorageInfo)
 	fileRouter.POST("/metadata", h.SaveFileMetadata)
 	fileRouter.POST("/:id/content", h.SaveFileContent)
 	fileRouter.PUT("/rename", h.RenameFile)
@@ -45,4 +47,19 @@ func NewRouter(e *echo.Echo, h handler.AppHandler) {
 // @Router /ping [get]
 func Ping(ctx echo.Context) error {
 	return ctx.String(http.StatusOK, "pong")
+}
+
+// GetCSRFToken возвращает CSRF токен
+// @Summary Получить CSRF токен
+// @Description Возвращает CSRF токен для защиты от CSRF атак. Токен также устанавливается в cookie "_csrf"
+// @Tags security
+// @Produce json
+// @Success 200 {object} map[string]string
+// @Router /csrf-token [get]
+func GetCSRFToken(ctx echo.Context) error {
+	token := ctx.Get("csrf")
+	if token == nil {
+		return ctx.JSON(http.StatusOK, map[string]string{"csrf_token": ""})
+	}
+	return ctx.JSON(http.StatusOK, map[string]string{"csrf_token": token.(string)})
 }

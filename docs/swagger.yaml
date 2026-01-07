@@ -136,6 +136,15 @@ definitions:
       user_id:
         type: integer
     type: object
+  meemo_internal_usecase_file.GetStorageInfoDtoOut:
+    properties:
+      available_bytes:
+        type: integer
+      total_bytes:
+        type: integer
+      used_bytes:
+        type: integer
+    type: object
   meemo_internal_usecase_file.RenameFileDtoOut:
     properties:
       id:
@@ -229,6 +238,22 @@ info:
   title: Meemo File Storage API
   version: "1.0"
 paths:
+  /csrf-token:
+    get:
+      description: Возвращает CSRF токен для защиты от CSRF атак. Токен также устанавливается
+        в cookie "_csrf"
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить CSRF токен
+      tags:
+      - security
   /files:
     get:
       description: Возвращает список всех файлов текущего пользователя
@@ -528,6 +553,27 @@ paths:
       security:
       - BearerAuth: []
       summary: Изменить статус файла
+      tags:
+      - files
+  /files/storage:
+    get:
+      description: Возвращает информацию об использованном и доступном месте в хранилище
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.GetStorageInfoDtoOut'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить информацию о хранилище
       tags:
       - files
   /files/visibility:
