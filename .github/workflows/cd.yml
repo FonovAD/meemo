@@ -21,6 +21,6 @@ jobs:
         run: |
           TAG=${GITHUB_REF#refs/tags/}
           if [[ $GITHUB_REF == refs/tags/* ]]; then
-            docker build -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/backend:$TAG .
-            docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/backend:$TAG
+            docker build -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/release/backend:$TAG .
+            docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/release/backend:$TAG
           fi
