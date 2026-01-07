@@ -18,7 +18,7 @@ jobs:
           go-version: '1.24'
 
       - name: Run linter
-        run: make lint  # или: golangci-lint run, если используешь его
+        run: make lint
 
   build:
     runs-on: ubuntu-latest
@@ -34,7 +34,7 @@ jobs:
         run: make build
 
   integration_tests:
-    needs: [build, lint]  # ← ждёт успешного завершения ОБОИХ job'ов
+    needs: [build, lint]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
