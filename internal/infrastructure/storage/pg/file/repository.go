@@ -3,10 +3,11 @@ package file
 import (
 	"context"
 	"database/sql"
-	"github.com/jmoiron/sqlx"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/file/repository"
 	"meemo/internal/infrastructure/storage/model"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type fileRepository struct {
@@ -34,9 +35,9 @@ func (fr *fileRepository) Save(ctx context.Context, userID int64, originalName, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	for rows.Next() {
+	if rows.Next() {
 		if err := rows.Scan(&fileModel.ID); err != nil {
 			return nil, err
 		}
@@ -113,7 +114,7 @@ func (fr *fileRepository) List(ctx context.Context, userEmail string) ([]*entity
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var files []*entity.File
 	for rows.Next() {

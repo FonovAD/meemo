@@ -1,4 +1,4 @@
-.PHONY: swagger swagger-fmt build test test-unit test-integration test-coverage help clean
+.PHONY: swagger swagger-fmt build test test-unit test-integration test-coverage lint lint-fix lint-install help clean
 
 build:
 	@echo "Сборка приложения..."
@@ -37,6 +37,19 @@ swagger-fmt:
 	@echo "Форматирование Swagger документации..."
 	@export PATH=$$PATH:$$(go env GOPATH)/bin && swag fmt
 
+lint:
+	@echo "Запуск линтера..."
+	@golangci-lint run ./...
+
+lint-fix:
+	@echo "Запуск линтера с автоисправлением..."
+	@golangci-lint run --fix ./...
+
+lint-install:
+	@echo "Установка golangci-lint..."
+	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	@echo "golangci-lint установлен"
+
 clean:
 	@echo "Очистка..."
 	@rm -f meemo
@@ -54,6 +67,11 @@ help:
 	@echo "  make test-unit         - Запустить только unit-тесты"
 	@echo "  make test-integration  - Запустить интеграционные тесты"
 	@echo "  make test-coverage     - Запустить тесты с HTML отчетом о покрытии"
+	@echo ""
+	@echo "Линтер:"
+	@echo "  make lint              - Запустить golangci-lint"
+	@echo "  make lint-fix          - Запустить линтер с автоисправлением"
+	@echo "  make lint-install      - Установить golangci-lint"
 	@echo ""
 	@echo "Документация:"
 	@echo "  make swagger           - Сгенерировать Swagger документацию"

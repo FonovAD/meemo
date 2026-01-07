@@ -3,11 +3,12 @@ package user
 import (
 	"context"
 	"errors"
-	"golang.org/x/crypto/bcrypt"
 	"meemo/internal/domain/entity"
 	jwtService "meemo/internal/domain/token/service"
 	"meemo/internal/domain/user/repository"
 	"meemo/internal/domain/user/service"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UseCase interface {
@@ -38,7 +39,9 @@ func (u *useCase) CreateUser(ctx context.Context, in *CreateUserDtoIn) (*CreateU
 		LastName:  in.LastName,
 		Email:     in.Email,
 	}
-	u.service.HashPassword(user, in.Password)
+	if err := u.service.HashPassword(user, in.Password); err != nil {
+		return nil, err
+	}
 
 	user, err := u.repository.Create(ctx, user.FirstName, user.LastName, user.Email, user.PasswordSalt)
 	if err != nil {

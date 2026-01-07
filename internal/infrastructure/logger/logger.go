@@ -79,4 +79,3 @@ func (l *zapLogger) With(fields ...zap.Field) Logger {
 func (l *zapLogger) Sync() error {
 	return l.logger.Sync()
 }
-

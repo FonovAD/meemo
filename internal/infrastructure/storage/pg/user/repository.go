@@ -3,10 +3,11 @@ package user
 import (
 	"context"
 	"database/sql"
-	"github.com/jmoiron/sqlx"
 	"meemo/internal/domain/entity"
 	"meemo/internal/domain/user/repository"
 	"meemo/internal/infrastructure/storage/model"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type userRepository struct {
@@ -29,7 +30,9 @@ func (ur *userRepository) Create(ctx context.Context, firstName, lastName, email
 	if err != nil {
 		return nil, err
 	}
-	for rows.Next() {
+	defer func() { _ = rows.Close() }()
+
+	if rows.Next() {
 		if err := rows.Scan(&userModel.ID); err != nil {
 			return nil, err
 		}
@@ -61,7 +64,10 @@ func (ur *userRepository) Update(ctx context.Context, id int64, firstName, lastN
 	if err != nil {
 		return nil, err
 	}
-	for rows.Next() {
+	// TODO: Добавить обработку ошибки
+	defer func() { _ = rows.Close() }()
+
+	if rows.Next() {
 		if err := rows.Scan(&userModel.ID); err != nil {
 			return nil, err
 		}
@@ -95,7 +101,7 @@ func (ur *userRepository) Delete(ctx context.Context, email string) (*entity.Use
 func (ur *userRepository) CheckPassword(ctx context.Context, email, saldPassword string) (bool, error) {
 	check := false
 
-	err := ur.conn.QueryRowxContext(ctx, CheckPassword, email, saldPassword).Scan(&check)
+	err := ur.conn.QueryRowxContext(ctx, CheckPasswordQuery, email, saldPassword).Scan(&check)
 	if err != nil {
 		return false, err
 	}

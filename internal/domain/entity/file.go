@@ -6,10 +6,9 @@ import (
 )
 
 type File struct {
-	ID           int64  `json:"id"`
-	UserID       int64  `json:"user_id"`
-	OriginalName string `json:"original_name"`
-	name         string
+	ID           int64     `json:"id"`
+	UserID       int64     `json:"user_id"`
+	OriginalName string    `json:"original_name"`
 	MimeType     string    `json:"mime_type"`
 	SizeInBytes  int64     `json:"size_in_bytes"`
 	S3Bucket     string    `json:"s3_bucket"`

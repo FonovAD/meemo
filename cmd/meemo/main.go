@@ -9,9 +9,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"gopkg.in/yaml.v3"
 	"meemo/config"
 	_ "meemo/docs"
 	"meemo/internal/infrastructure/logger"
@@ -19,6 +16,10 @@ import (
 	"meemo/internal/infrastructure/storage/s3"
 	"meemo/internal/interactor"
 	"meemo/internal/presenter/http/router"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"gopkg.in/yaml.v3"
 )
 
 // @title Meemo File Storage API
@@ -61,7 +62,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer log.Sync()
+	// TODO: Добавить обработку ошибки
+	defer func() { _ = log.Sync() }()
 
 	ctx := context.Background()
 
@@ -158,7 +160,7 @@ func setupEcho() *echo.Echo {
 }
 
 func setupConfig(path string) *config.Config {
-	yamlFile, err := os.ReadFile(path)
+	yamlFile, err := os.ReadFile(path) //nolint:gosec // G304: path is from command line flag, not user input
 	if err != nil {
 		panic(err)
 	}

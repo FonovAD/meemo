@@ -39,4 +39,3 @@ func (i *interactor) NewUserUseCase() usecase.UseCase {
 func (i *interactor) NewUserHandler() handler.UserHandler {
 	return handler.NewUserHandler(i.NewUserUseCase(), i.registrationEnabled)
 }
-

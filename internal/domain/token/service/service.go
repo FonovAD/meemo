@@ -3,11 +3,12 @@ package service
 import (
 	"crypto/rand"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"math/big"
 	"meemo/internal/domain/entity"
 	"strconv"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type TokenService interface {

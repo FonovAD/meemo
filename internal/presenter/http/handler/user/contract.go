@@ -19,5 +19,3 @@ type UpdateTokenRequest struct {
 type LogoutRequest struct {
 	AccessToken string `json:"access_token" validate:"required"`
 }
-
-

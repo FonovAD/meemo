@@ -5,11 +5,12 @@ import (
 	"io"
 	"strconv"
 
+	"meemo/internal/infrastructure/logger"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"go.uber.org/zap"
-	"meemo/internal/infrastructure/logger"
 )
 
 type S3Client interface {
@@ -70,7 +71,7 @@ func (s3Client *S3ClientImpl) GetFileByID(ctx context.Context, fileID int64, inW
 		s3Client.log.Error("failed to get file from S3", zap.Int64("fileID", fileID), zap.Error(err))
 		return err
 	}
-	defer result.Body.Close()
+	defer func() { _ = result.Body.Close() }()
 
 	_, err = io.Copy(inWriter, result.Body)
 	if err != nil {
@@ -91,7 +92,7 @@ func (s3Client *S3ClientImpl) GetFileByOriginalName(ctx context.Context, userEma
 		s3Client.log.Error("failed to get file by name from S3", zap.String("key", key), zap.Error(err))
 		return err
 	}
-	defer result.Body.Close()
+	defer func() { _ = result.Body.Close() }()
 
 	_, err = io.Copy(inWriter, result.Body)
 	if err != nil {

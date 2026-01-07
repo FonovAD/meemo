@@ -31,7 +31,7 @@ func NewRouter(e *echo.Echo, h handler.AppHandler) {
 	fileRouter.PUT("/rename", h.RenameFile)
 	fileRouter.PUT("/visibility", h.ChangeVisibility)
 	fileRouter.PUT("/status", h.SetStatus)
-	
+
 	fileRouter.GET("/by-id/:id", h.GetFileByID)
 	fileRouter.GET("/:name/info", h.GetFileInfo)
 	fileRouter.GET("/:name", h.GetFile)

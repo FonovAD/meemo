@@ -1,12 +1,13 @@
 package interactor
 
 import (
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/jmoiron/sqlx"
 	"meemo/internal/infrastructure/logger"
 	handler "meemo/internal/presenter/http/handler"
 	filehandler "meemo/internal/presenter/http/handler/file"
 	userhandler "meemo/internal/presenter/http/handler/user"
+
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/jmoiron/sqlx"
 )
 
 type Interactor interface {

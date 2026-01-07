@@ -71,7 +71,9 @@ func SetupPostgresContainer(t *testing.T) (*TestPostgresContainer, func()) {
 		if err := cleanupTables(db); err != nil {
 			t.Logf("Warning: failed to cleanup tables: %v", err)
 		}
-		db.Close()
+		if err := db.Close(); err != nil {
+			t.Logf("Warning: failed to close db: %v", err)
+		}
 		if err := postgresContainer.Terminate(ctx); err != nil {
 			t.Logf("Warning: failed to terminate container: %v", err)
 		}
@@ -114,7 +116,8 @@ func cleanupTables(db *sqlx.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	// TODO: Добавить обработку ошибки
+	defer func() { _ = tx.Rollback() }()
 
 	tables := []string{"files", "users"}
 	for _, table := range tables {
@@ -130,4 +133,3 @@ func initTestDB(t *testing.T) (*sqlx.DB, func()) {
 	tc, cleanup := SetupPostgresContainer(t)
 	return tc.DB, cleanup
 }
-

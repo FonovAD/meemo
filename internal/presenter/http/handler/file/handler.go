@@ -5,11 +5,12 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/labstack/echo/v4"
-	"go.uber.org/zap"
 	tokenservice "meemo/internal/domain/token/service"
 	"meemo/internal/infrastructure/logger"
 	fileusecase "meemo/internal/usecase/file"
+
+	"github.com/labstack/echo/v4"
+	"go.uber.org/zap"
 )
 
 type FileHandler interface {
@@ -121,7 +122,8 @@ func (h *fileHandler) SaveFileContent(c echo.Context) error {
 		h.log.Error("failed to open uploaded file", zap.String("fileID", fileID), zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to open uploaded file"})
 	}
-	defer src.Close()
+	// TODO: Добавить обработку ошибки
+	defer func() { _ = src.Close() }()
 
 	req := &fileusecase.SaveFileContentDtoIn{
 		ID:          mustParseInt64(fileID),
@@ -453,7 +455,7 @@ func getExtensionFromMimeType(mimeType string) string {
 	if mimeType == "" {
 		return ""
 	}
-	
+
 	lastSlash := -1
 	for i := len(mimeType) - 1; i >= 0; i-- {
 		if mimeType[i] == '/' {
@@ -461,24 +463,24 @@ func getExtensionFromMimeType(mimeType string) string {
 			break
 		}
 	}
-	
+
 	if lastSlash == -1 || lastSlash == len(mimeType)-1 {
 		return ""
 	}
-	
+
 	extension := mimeType[lastSlash+1:]
-	
+
 	for i, ch := range extension {
 		if ch == ';' || ch == '+' {
 			extension = extension[:i]
 			break
 		}
 	}
-	
+
 	if extension == "" || extension == "octet-stream" {
 		return ""
 	}
-	
+
 	return "." + extension
 }
 
@@ -490,16 +492,16 @@ func ensureFileExtension(filename, mimeType string) string {
 			break
 		}
 	}
-	
+
 	if hasExtension {
 		return filename
 	}
-	
+
 	ext := getExtensionFromMimeType(mimeType)
 	if ext != "" {
 		return filename + ext
 	}
-	
+
 	return filename
 }
 

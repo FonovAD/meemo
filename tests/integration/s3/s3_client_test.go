@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"meemo/internal/infrastructure/logger"
 	"meemo/internal/infrastructure/storage/s3/file"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 func TestS3Client_SaveAndGetFile(t *testing.T) {

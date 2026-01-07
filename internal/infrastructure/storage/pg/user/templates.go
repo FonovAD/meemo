@@ -27,7 +27,8 @@ const (
 	WHERE email = $1
 	RETURNING id;`
 
-	CheckPassword = `
+	//nolint:gosec // G101: false positive - this is SQL template name, not a credential
+	CheckPasswordQuery = `
 	SELECT EXISTS (
 		SELECT 1
 		FROM users

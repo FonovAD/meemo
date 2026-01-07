@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
 	userusecase "meemo/internal/usecase/user"
+
+	"github.com/labstack/echo/v4"
 )
 
 type UserHandler interface {
@@ -257,5 +258,3 @@ func (h *userHandler) AuthMiddleware() echo.MiddlewareFunc {
 		}
 	}
 }
-
-

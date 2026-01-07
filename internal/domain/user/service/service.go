@@ -1,12 +1,12 @@
 package service
 
 import (
-	"golang.org/x/crypto/bcrypt"
 	"meemo/internal/domain/entity"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 const secret = "your-256-bit-secret"
-const salt = "salt"
 
 type UserService interface {
 	HashPassword(user *entity.User, password string) error
