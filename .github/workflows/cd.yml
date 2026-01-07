@@ -19,6 +19,6 @@ jobs:
 
       - name: Build and push image
         run: |
-          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/${{ github.repository }}:${{ github.sha }}
+          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/fonovad/meemo:${{ github.sha }}
           docker build -t $IMAGE .
           docker push $IMAGE
