@@ -19,12 +19,14 @@ type UserHandler interface {
 }
 
 type userHandler struct {
-	userUsecase userusecase.UseCase
+	userUsecase         userusecase.UseCase
+	registrationEnabled bool
 }
 
-func NewUserHandler(usecase userusecase.UseCase) UserHandler {
+func NewUserHandler(usecase userusecase.UseCase, registrationEnabled bool) UserHandler {
 	return &userHandler{
-		userUsecase: usecase,
+		userUsecase:         usecase,
+		registrationEnabled: registrationEnabled,
 	}
 }
 
@@ -37,10 +39,15 @@ func NewUserHandler(usecase userusecase.UseCase) UserHandler {
 // @Param user body CreateUserRequest true "Данные пользователя"
 // @Success 201 {object} userusecase.CreateUserDtoOut
 // @Failure 400 {object} map[string]string
+// @Failure 403 {object} map[string]string
 // @Failure 409 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /users/register [post]
 func (h *userHandler) CreateUser(c echo.Context) error {
+	if !h.registrationEnabled {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "registration is disabled"})
+	}
+
 	var req CreateUserRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid JSON"})

@@ -74,7 +74,7 @@ func main() {
 		log.Fatal("failed to connect to PostgreSQL")
 	}
 
-	i := interactor.NewInteractor(PG, S3, cfg.S3BucketName, log)
+	i := interactor.NewInteractor(PG, S3, cfg.S3BucketName, log, cfg.RegistrationEnabled)
 	h := i.NewAppHandler()
 
 	e := setupEcho()
@@ -167,5 +167,6 @@ func setupConfig(path string) *config.Config {
 	if err != nil {
 		panic(err)
 	}
+	c.LoadSecretsFromEnv()
 	return &c
 }

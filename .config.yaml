@@ -2,6 +2,7 @@ host: "0.0.0.0"
 port: "8080"
 log_level: "debug"
 version: "0.1.0"
+registration_enabled: true
 
 postgres:
   database: "meemo_db"
@@ -15,7 +16,7 @@ postgres:
 
 s3:
   aws_region: "us-east-1"
-  aws_endpoint: "http://minio:9000"  # Для MinIO/LocalStack. Для Ceph используйте порт 8000. Оставьте пустым для AWS S3
+  aws_endpoint: "http://minio:9000"  # Для MinIO/LocalStack. Для Ceph порт 8000. Оставьте пустым для AWS S3
   aws_access_key_id: "minioadmin"
   aws_secret_access_key: "minioadmin"
   aws_bucket_name: "meemo-bucket"

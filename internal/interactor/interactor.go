@@ -13,14 +13,15 @@ type Interactor interface {
 	NewAppHandler() handler.AppHandler
 }
 type interactor struct {
-	conn     *sqlx.DB
-	s3client *s3.Client
-	s3bucket string
-	log      logger.Logger
+	conn                *sqlx.DB
+	s3client            *s3.Client
+	s3bucket            string
+	log                 logger.Logger
+	registrationEnabled bool
 }
 
-func NewInteractor(conn *sqlx.DB, s3client *s3.Client, bucket string, log logger.Logger) Interactor {
-	return &interactor{conn: conn, s3client: s3client, s3bucket: bucket, log: log}
+func NewInteractor(conn *sqlx.DB, s3client *s3.Client, bucket string, log logger.Logger, registrationEnabled bool) Interactor {
+	return &interactor{conn: conn, s3client: s3client, s3bucket: bucket, log: log, registrationEnabled: registrationEnabled}
 }
 
 type appHandler struct {
