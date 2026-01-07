@@ -232,7 +232,6 @@ func TestCheckPassword_Success(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Проверяем пароль с правильным хешем
 	check, err := ur.CheckPassword(context.Background(), createdUser.Email, createdUser.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password: %v", err)
@@ -255,7 +254,6 @@ func TestCheckPassword_WrongPassword(t *testing.T) {
 		t.Fatalf("Failed to create user: %v", err)
 	}
 
-	// Проверяем с неправильным хешем
 	check, err := ur.CheckPassword(context.Background(), createdUser.Email, "wrong_hash_that_does_not_match")
 	if err != nil {
 		t.Fatalf("Failed to check password: %v", err)
@@ -304,26 +302,22 @@ func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
 
 	ur := user.NewUserRepository(db)
 
-	// Создаем первого пользователя
 	passwordHash1 := hashPassword(t, "samepassword")
 	createdUser1, err := ur.Create(context.Background(), "Первый", "Пользователь", "user1@test.com", passwordHash1)
 	if err != nil {
 		t.Fatalf("Failed to create first user: %v", err)
 	}
 
-	// Создаем второго пользователя с тем же паролем
 	passwordHash2 := hashPassword(t, "samepassword")
 	createdUser2, err := ur.Create(context.Background(), "Второй", "Пользователь", "user2@test.com", passwordHash2)
 	if err != nil {
 		t.Fatalf("Failed to create second user: %v", err)
 	}
 
-	// Проверяем, что хеши разные (bcrypt генерирует разные хеши)
 	if createdUser1.PasswordSalt == createdUser2.PasswordSalt {
 		t.Error("Expected different password hashes for same password (bcrypt uses random salt), got same hash")
 	}
 
-	// Проверяем пароль первого пользователя
 	check1, err := ur.CheckPassword(context.Background(), createdUser1.Email, createdUser1.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password for user1: %v", err)
@@ -332,7 +326,6 @@ func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
 		t.Error("Expected password check to return true for user1, got false")
 	}
 
-	// Проверяем пароль второго пользователя
 	check2, err := ur.CheckPassword(context.Background(), createdUser2.Email, createdUser2.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password for user2: %v", err)
@@ -341,7 +334,6 @@ func TestCheckPassword_DifferentUsersSamePassword(t *testing.T) {
 		t.Error("Expected password check to return true for user2, got false")
 	}
 
-	// Проверяем, что нельзя использовать хеш одного пользователя для другого
 	wrongCheck, err := ur.CheckPassword(context.Background(), createdUser1.Email, createdUser2.PasswordSalt)
 	if err != nil {
 		t.Fatalf("Failed to check password: %v", err)

@@ -3,7 +3,6 @@ package s3
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"testing"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	smithyendpoints "github.com/aws/smithy-go/endpoints"
 	tcminio "github.com/testcontainers/testcontainers-go/modules/minio"
 )
 
@@ -21,18 +19,6 @@ const (
 	testSecretKey = "minioadmin"
 	testRegion    = "us-east-1"
 )
-
-type minioEndpointResolver struct {
-	endpoint string
-}
-
-func (r *minioEndpointResolver) ResolveEndpoint(_ context.Context, _ s3.EndpointParameters) (smithyendpoints.Endpoint, error) {
-	uri, err := url.Parse(r.endpoint)
-	if err != nil {
-		return smithyendpoints.Endpoint{}, err
-	}
-	return smithyendpoints.Endpoint{URI: *uri}, nil
-}
 
 type TestMinioContainer struct {
 	Container  *tcminio.MinioContainer
@@ -57,10 +43,18 @@ func SetupMinioContainer(t *testing.T) (*TestMinioContainer, func()) {
 	if err != nil {
 		t.Fatalf("Failed to get minio endpoint: %v", err)
 	}
+	//nolint:staticcheck
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		return aws.Endpoint{
+			URL:               "http://" + endpoint,
+			HostnameImmutable: true,
+		}, nil
+	})
 
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(testRegion),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(testAccessKey, testSecretKey, "")),
+		config.WithEndpointResolverWithOptions(customResolver), //nolint:staticcheck
 	)
 	if err != nil {
 		t.Fatalf("Failed to load AWS config: %v", err)
@@ -68,7 +62,6 @@ func SetupMinioContainer(t *testing.T) (*TestMinioContainer, func()) {
 
 	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.UsePathStyle = true
-		o.EndpointResolverV2 = &minioEndpointResolver{endpoint: "http://" + endpoint}
 	})
 
 	testBucket := fmt.Sprintf("test-bucket-%d", time.Now().UnixNano())
