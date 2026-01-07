@@ -1,0 +1,163 @@
+package file
+
+import (
+	"io"
+	"time"
+)
+
+type SaveFileMetadataDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+	MimeType     string `json:"mime_type"`
+	SizeInBytes  int64  `json:"size_in_bytes"`
+	IsPublic     bool   `json:"is_public"`
+}
+
+type SaveFileMetadataDtoOut struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	MimeType     string    `json:"mime_type"`
+	SizeInBytes  int64     `json:"size_in_bytes"`
+	Status       int       `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	IsPublic     bool      `json:"is_public"`
+}
+
+type SaveFileContentDtoIn struct {
+	Email       string `json:"email"`
+	ID          int64  `json:"id"`
+	SizeInBytes int64  `json:"size_in_bytes"`
+	R           io.Reader
+}
+
+type SaveFileContentDtoOut struct {
+	LoadingResult bool `json:"loading_result"`
+}
+
+type GetFileDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+}
+
+type GetFileDtoOut struct {
+	ID           int64  `json:"id"`
+	OriginalName string `json:"original_name"`
+	MimeType     string `json:"mime_type"`
+	SizeInBytes  int64  `json:"size_in_bytes"`
+}
+
+type GetFileByIDDtoIn struct {
+	FileID    int64  `json:"file_id"`
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
+}
+
+type GetFileByIDDtoOut struct {
+	ID           int64  `json:"id"`
+	OriginalName string `json:"original_name"`
+	MimeType     string `json:"mime_type"`
+	SizeInBytes  int64  `json:"size_in_bytes"`
+}
+
+type GetFileInfoDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+}
+
+type GetFileInfoDtoOut struct {
+	ID           int64     `json:"id"`
+	UserID       int64     `json:"user_id"`
+	OriginalName string    `json:"original_name"`
+	MimeType     string    `json:"mime_type"`
+	SizeInBytes  int64     `json:"size_in_bytes"`
+	Status       int       `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	IsPublic     bool      `json:"is_public"`
+}
+
+type RenameFileDtoIn struct {
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
+	OldName   string `json:"old_name"`
+	NewName   string `json:"new_name"`
+}
+
+type RenameFileDtoOut struct {
+	ID        int64     `json:"id"`
+	OldName   string    `json:"old_name"`
+	NewName   string    `json:"new_name"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type DeleteFileDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+}
+
+type DeleteFileDtoOut struct {
+	ID int64 `json:"id"`
+}
+
+type GetAllUserFilesDtoIn struct {
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
+}
+
+type GetAllUserFilesDtoOut struct {
+	Files []FileListItemDto `json:"files"`
+}
+
+type FileListItemDto struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	MimeType     string    `json:"mime_type"`
+	SizeInBytes  int64     `json:"size_in_bytes"`
+	Status       int       `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	IsPublic     bool      `json:"is_public"`
+}
+
+type ChangeVisibilityDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+	IsPublic     bool   `json:"is_public"`
+}
+
+type ChangeVisibilityDtoOut struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	IsPublic     bool      `json:"is_public"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type SetStatusDtoIn struct {
+	UserID       int64  `json:"user_id"`
+	UserEmail    string `json:"user_email"`
+	OriginalName string `json:"original_name"`
+	Status       int    `json:"status"`
+}
+
+type SetStatusDtoOut struct {
+	ID           int64     `json:"id"`
+	OriginalName string    `json:"original_name"`
+	Status       int       `json:"status"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type GetStorageInfoDtoIn struct {
+	UserID    int64  `json:"user_id"`
+	UserEmail string `json:"user_email"`
+}
+
+type GetStorageInfoDtoOut struct {
+	UsedBytes      int64 `json:"used_bytes"`
+	AvailableBytes int64 `json:"available_bytes"`
+	TotalBytes     int64 `json:"total_bytes"`
+}

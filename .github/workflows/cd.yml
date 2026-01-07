@@ -1,0 +1,24 @@
+name: backend-CD
+
+on:
+  push:
+    branches: [ "prod" ]
+
+
+jobs:
+  publish:
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/prod'
+    steps:
+      - name: Login to Yandex Container Registry
+        run: |
+          echo "${{ secrets.YC_TOKEN }}" | docker login \
+            --username oauth \
+            --password-stdin \
+            cr.yandex/${{ secrets.YC_REGISTRY_ID }}
+
+      - name: Build and push image
+        run: |
+          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/${{ github.repository }}:${{ github.sha }}
+          docker build -t $IMAGE .
+          docker push $IMAGE

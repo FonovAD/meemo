@@ -1,0 +1,838 @@
+basePath: /api/v1
+definitions:
+  internal_presenter_http_handler_file.ChangeVisibilityRequest:
+    properties:
+      is_public:
+        type: boolean
+      original_name:
+        type: string
+    type: object
+  internal_presenter_http_handler_file.RenameFileRequest:
+    properties:
+      new_name:
+        type: string
+      old_name:
+        type: string
+    type: object
+  internal_presenter_http_handler_file.SaveFileMetadata:
+    properties:
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size_in_bytes:
+        type: integer
+    type: object
+  internal_presenter_http_handler_file.SetStatusRequest:
+    properties:
+      original_name:
+        type: string
+      status:
+        type: integer
+    type: object
+  internal_presenter_http_handler_user.AuthUserRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  internal_presenter_http_handler_user.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - password
+    type: object
+  internal_presenter_http_handler_user.LogoutRequest:
+    properties:
+      access_token:
+        type: string
+    required:
+    - access_token
+    type: object
+  internal_presenter_http_handler_user.UpdateTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  meemo_internal_usecase_file.ChangeVisibilityDtoOut:
+    properties:
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      original_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  meemo_internal_usecase_file.DeleteFileDtoOut:
+    properties:
+      id:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.FileListItemDto:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size_in_bytes:
+        type: integer
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  meemo_internal_usecase_file.GetAllUserFilesDtoOut:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/meemo_internal_usecase_file.FileListItemDto'
+        type: array
+    type: object
+  meemo_internal_usecase_file.GetFileInfoDtoOut:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size_in_bytes:
+        type: integer
+      status:
+        type: integer
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.GetStorageInfoDtoOut:
+    properties:
+      available_bytes:
+        type: integer
+      total_bytes:
+        type: integer
+      used_bytes:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.RenameFileDtoOut:
+    properties:
+      id:
+        type: integer
+      new_name:
+        type: string
+      old_name:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  meemo_internal_usecase_file.SaveFileContentDtoOut:
+    properties:
+      loading_result:
+        type: boolean
+    type: object
+  meemo_internal_usecase_file.SaveFileMetadataDtoOut:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_public:
+        type: boolean
+      mime_type:
+        type: string
+      original_name:
+        type: string
+      size_in_bytes:
+        type: integer
+      status:
+        type: integer
+    type: object
+  meemo_internal_usecase_file.SetStatusDtoOut:
+    properties:
+      id:
+        type: integer
+      original_name:
+        type: string
+      status:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  meemo_internal_usecase_user.CreateUserDtoOut:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  meemo_internal_usecase_user.GetUserInfoOut:
+    properties:
+      email:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+    type: object
+  meemo_internal_usecase_user.UpdateTokenDtoOut:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+  meemo_internal_usecase_user.UserDtoOut:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@meemo.com
+    name: API Support
+  description: API для управления файловым хранилищем
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Meemo File Storage API
+  version: "1.0"
+paths:
+  /csrf-token:
+    get:
+      description: Возвращает CSRF токен для защиты от CSRF атак. Токен также устанавливается
+        в cookie "_csrf"
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Получить CSRF токен
+      tags:
+      - security
+  /files:
+    get:
+      description: Возвращает список всех файлов текущего пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.GetAllUserFilesDtoOut'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить список файлов
+      tags:
+      - files
+  /files/{id}/content:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Загружает содержимое файла по его ID
+      parameters:
+      - description: ID файла
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Содержимое файла
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.SaveFileContentDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Загрузить содержимое файла
+      tags:
+      - files
+  /files/{name}:
+    delete:
+      description: 'Удаляет файл по его имени (включая расширение, например: file.txt)'
+      parameters:
+      - description: Имя файла с расширением
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.DeleteFileDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Удалить файл
+      tags:
+      - files
+    get:
+      description: 'Скачивает файл по его имени (включая расширение, например: file.txt)'
+      parameters:
+      - description: Имя файла с расширением
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить файл
+      tags:
+      - files
+  /files/{name}/info:
+    get:
+      description: 'Возвращает метаданные файла по его имени (включая расширение,
+        например: file.txt)'
+      parameters:
+      - description: Имя файла с расширением
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.GetFileInfoDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить информацию о файле
+      tags:
+      - files
+  /files/by-id/{id}:
+    get:
+      description: Скачивает файл по его ID
+      parameters:
+      - description: ID файла
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить файл по ID
+      tags:
+      - files
+  /files/metadata:
+    post:
+      consumes:
+      - application/json
+      description: Создает метаданные для нового файла
+      parameters:
+      - description: Метаданные файла
+        in: body
+        name: file
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_file.SaveFileMetadata'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.SaveFileMetadataDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Создать метаданные файла
+      tags:
+      - files
+  /files/rename:
+    put:
+      consumes:
+      - application/json
+      description: Изменяет имя файла
+      parameters:
+      - description: Запрос на переименование
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_file.RenameFileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.RenameFileDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Переименовать файл
+      tags:
+      - files
+  /files/status:
+    put:
+      consumes:
+      - application/json
+      description: Изменяет статус файла (например, 0 - активен, 1 - удален)
+      parameters:
+      - description: Запрос на изменение статуса
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_file.SetStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.SetStatusDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Изменить статус файла
+      tags:
+      - files
+  /files/storage:
+    get:
+      description: Возвращает информацию об использованном и доступном месте в хранилище
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.GetStorageInfoDtoOut'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить информацию о хранилище
+      tags:
+      - files
+  /files/visibility:
+    put:
+      consumes:
+      - application/json
+      description: Изменяет видимость файла (публичный/приватный)
+      parameters:
+      - description: Запрос на изменение приватности
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_file.ChangeVisibilityRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_file.ChangeVisibilityDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Изменить приватность файла
+      tags:
+      - files
+  /ping:
+    get:
+      description: Возвращает pong для проверки работоспособности API
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: pong
+          schema:
+            type: string
+      summary: Проверка доступности сервера
+      tags:
+      - health
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Авторизует пользователя и возвращает токены доступа
+      parameters:
+      - description: Учетные данные
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.AuthUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.UserDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Аутентификация пользователя
+      tags:
+      - users
+  /users/logout:
+    post:
+      consumes:
+      - application/json
+      description: Инвалидирует токен доступа пользователя
+      parameters:
+      - description: Access token
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Выход из системы
+      tags:
+      - users
+  /users/me:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает информацию о текущем авторизованном пользователе
+      parameters:
+      - description: Bearer {access_token}
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.GetUserInfoOut'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Получить информацию о пользователе
+      tags:
+      - users
+  /users/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Обновляет access token используя refresh token
+      parameters:
+      - description: Refresh token
+        in: body
+        name: token
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.UpdateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.UpdateTokenDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Обновить токен доступа
+      tags:
+      - users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Регистрирует нового пользователя и возвращает токены доступа
+      parameters:
+      - description: Данные пользователя
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/internal_presenter_http_handler_user.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/meemo_internal_usecase_user.CreateUserDtoOut'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Создать пользователя
+      tags:
+      - users
+schemes:
+- http
+- https
+securityDefinitions:
+  ApiKeyAuth:
+    description: User ID header
+    in: header
+    name: X-User-ID
+    type: apiKey
+  ApiKeyAuth2:
+    description: User Email header
+    in: header
+    name: X-User-Email
+    type: apiKey
+  BearerAuth:
+    description: Bearer {access_token}
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
