@@ -3,12 +3,13 @@ name: backend-CD
 on:
   push:
     branches: [ "prod" ]
+  pull_request:
+    branches: [ "prod" ]
 
 
 jobs:
   publish:
     runs-on: self-hosted
-    if: github.ref == 'refs/heads/prod'
     steps:
       - name: Login to Yandex Container Registry
         run: |
