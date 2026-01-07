@@ -2,9 +2,8 @@ name: backend-CD
 
 on:
   push:
-    branches: [ "prod" ]
-  pull_request:
-    branches: [ "prod" ]
+    tags: [ "v*" ]
+
 
 
 jobs:
@@ -18,8 +17,10 @@ jobs:
             --password-stdin \
             cr.yandex/${{ secrets.YC_REGISTRY_ID }}
 
-      - name: Build and push image
+      - name: Build and push
         run: |
-          IMAGE=cr.yandex/${{ secrets.YC_REGISTRY_ID }}/fonovad/meemo:${{ github.sha }}
-          docker build -t $IMAGE .
-          docker push $IMAGE
+          TAG=${GITHUB_REF#refs/tags/}
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            docker build -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/meemo:$TAG .
+            docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/meemo:$TAG
+          fi
