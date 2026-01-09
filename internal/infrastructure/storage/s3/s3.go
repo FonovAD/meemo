@@ -11,6 +11,7 @@ import (
 
 func NewS3(ctx context.Context, cfg *Config) (*s3.Client, error) {
 	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithRequestChecksumCalculation(aws.RequestChecksumCalculationWhenRequired),
 		config.WithRegion(cfg.Region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
 			cfg.AccessKeyID,
