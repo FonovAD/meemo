@@ -1,0 +1,26 @@
+name: backend-CD
+
+on:
+  push:
+    tags: [ "v*" ]
+
+
+
+jobs:
+  publish:
+    runs-on: self-hosted
+    steps:
+      - name: Login to Yandex Container Registry
+        run: |
+          echo "${{ secrets.YC_TOKEN }}" | docker login \
+            --username oauth \
+            --password-stdin \
+            cr.yandex/${{ secrets.YC_REGISTRY_ID }}
+
+      - name: Build and push
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            docker build -t cr.yandex/${{ secrets.YC_REGISTRY_ID }}/release/backend:$TAG .
+            docker push cr.yandex/${{ secrets.YC_REGISTRY_ID }}/release/backend:$TAG
+          fi

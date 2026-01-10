@@ -1,0 +1,32 @@
+# Конфигурация приложения (без секретов)
+# Секреты передаются через переменные окружения:
+#   - POSTGRES_PASSWORD
+#   - POSTGRES_USER (опционально)
+#   - AWS_ACCESS_KEY_ID
+#   - AWS_SECRET_ACCESS_KEY
+
+host: "0.0.0.0"
+port: "8080"
+log_level: "info"
+version: "0.1.0"
+registration_enabled: true
+
+postgres:
+  database: "meemo_db"
+  user: "meemo_user"
+  password: ""
+  host: "postgres"
+  port: "5432"
+  retries: 5
+  pool_size: 10
+  ssl_mode: "disable"
+
+s3:
+  aws_region: "us-east-1"
+  aws_endpoint: "http://minio:9000"
+  aws_access_key_id: "" 
+  aws_secret_access_key: ""
+  aws_bucket_name: "meemo-bucket"
+  force_path_style: true
+
+s3_bucket_name: "meemo-bucket"
