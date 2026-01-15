@@ -88,6 +88,8 @@ func main() {
 	i := interactor.NewInteractor(PG, S3, cfg.S3BucketName, log, cfg.RegistrationEnabled)
 	h := i.NewAppHandler()
 
+	go setupPrometheus()
+
 	e := setupEcho()
 	router.NewRouter(e, h)
 
