@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +20,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/yaml.v3"
 )
 
@@ -52,7 +55,13 @@ import (
 // @name Authorization
 // @description Bearer {access_token}
 
-var configPathFlag = flag.String("config", ".config.yaml", "path to config file")
+var (
+	counterRPS = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "rps_total",
+		Help: "Requests per second",
+	})
+	configPathFlag = flag.String("config", ".config.yaml", "path to config file")
+)
 
 func main() {
 	flag.Parse()
@@ -78,6 +87,8 @@ func main() {
 
 	i := interactor.NewInteractor(PG, S3, cfg.S3BucketName, log, cfg.RegistrationEnabled)
 	h := i.NewAppHandler()
+
+	go setupPrometheus()
 
 	e := setupEcho()
 	router.NewRouter(e, h)
@@ -111,6 +122,16 @@ func setupEcho() *echo.Echo {
 		Format: "method=${method}, uri=${uri}, status=${status}, latency=${latency_human}\n",
 	}))
 
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			counterRPS.Inc()
+			if err := next(c); err != nil {
+				c.Error(err)
+			}
+			return nil
+		}
+	})
+
 	e.Use(middleware.Recover())
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -119,41 +140,6 @@ func setupEcho() *echo.Echo {
 		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, "X-User-ID", "X-User-Email", echo.HeaderXCSRFToken},
 		AllowCredentials: true,
 		ExposeHeaders:    []string{echo.HeaderXCSRFToken},
-	}))
-
-	e.Use(middleware.CSRFWithConfig(middleware.CSRFConfig{
-		TokenLookup:    "header:" + echo.HeaderXCSRFToken,
-		CookieName:     "_csrf",
-		CookiePath:     "/",
-		CookieSecure:   false,
-		CookieHTTPOnly: false,
-		CookieSameSite: http.SameSiteStrictMode,
-		Skipper: func(c echo.Context) bool {
-			path := c.Path()
-			method := c.Request().Method
-
-			if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions {
-				return true
-			}
-
-			authHeader := c.Request().Header.Get(echo.HeaderAuthorization)
-			if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-				return true
-			}
-
-			if path == "/api/v1/users/register" ||
-				path == "/api/v1/users/login" ||
-				path == "/api/v1/users/refresh" ||
-				path == "/api/v1/users/logout" {
-				return true
-			}
-
-			if path == "/ping" || len(path) >= 8 && path[:8] == "/swagger" {
-				return true
-			}
-
-			return false
-		},
 	}))
 
 	return e
@@ -171,4 +157,32 @@ func setupConfig(path string) *config.Config {
 	}
 	c.LoadSecretsFromEnv()
 	return &c
+}
+
+func setupPrometheus() {
+	prometheus.MustRegister(counterRPS)
+
+	metricsPort := os.Getenv("METRICS_PORT")
+	if metricsPort == "" {
+		metricsPort = "9090"
+	}
+
+	log.Println("metricsPort", metricsPort)
+
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", promhttp.Handler())
+
+	metricsSrv := &http.Server{
+		Addr:              ":" + metricsPort,
+		Handler:           metricsMux,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+		ReadHeaderTimeout: 3 * time.Second,
+	}
+
+	err := metricsSrv.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }
