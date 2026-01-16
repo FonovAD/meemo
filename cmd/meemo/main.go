@@ -57,8 +57,8 @@ import (
 
 var (
 	counterRPS = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "rps",
-		Help: "All requests per second",
+		Name: "rps_total",
+		Help: "Requests per second",
 	})
 	configPathFlag = flag.String("config", ".config.yaml", "path to config file")
 )
@@ -180,7 +180,6 @@ func setupPrometheus() {
 		IdleTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 3 * time.Second,
 	}
-	http.Handle("/metrics", promhttp.Handler())
 
 	err := metricsSrv.ListenAndServe()
 	if err != nil {
